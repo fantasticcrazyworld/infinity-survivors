@@ -906,45 +906,49 @@ function getShareText(type) {
   if (type === 'gameover') {
     return `☠️ INFINITY SURVIVORS ☠️
 
-⚔️ Stage: ${game.stageDef.name}
-⏱ Time: ${game.formatTime(game.time)}
-💀 Kills: ${game.totalKills}
-⭐ Level: ${p.level}
+⚔️ ${game.stageDef.name}
+⏱ ${game.formatTime(game.time)} | 💀 ${game.totalKills} kills
+⭐ Lv.${p.level} | 🔥 ${game.maxCombo} max combo
 🗡 ${weapons}
 
 ${stageBar}
+Score: ${calcScore(game)} pts
 
-Can you survive longer? 🔥
+Can you beat me? 🔥
+Play now 👇
 #InfinitySurvivors`;
   } else if (type === 'victory') {
-    return `🏆 INFINITY SURVIVORS - CLEARED! 🏆
+    return `🏆 INFINITY SURVIVORS - ALL CLEAR! 🏆
 
-⏱ Time: ${game.formatTime(game.time)}
-💀 Kills: ${game.totalKills}
-⭐ Level: ${p.level}
+⏱ ${game.formatTime(game.time)} | 💀 ${game.totalKills} kills
+⭐ Lv.${p.level} | 🔥 ${game.maxCombo} max combo
 🗡 ${weapons}
 
-${bar(5,5,'🟨','⬜')} ALL STAGES CLEAR!
+${bar(5,5,'🟨','⬜')} COMPLETE!
 
-I conquered the Void Emperor! 👑
+Score: ${calcScore(game)} pts 👑
+Play now 👇
 #InfinitySurvivors`;
   } else {
     return `✨ STAGE ${game.stageDef.id} CLEAR! ✨
 
 🏰 ${game.stageDef.name}
-💀 Kills: ${game.stageKills}
-⭐ Level: ${p.level}
+💀 ${game.stageKills} kills | ⭐ Lv.${p.level}
 🗡 ${weapons}
 
 ${stageBar}
 
+Play now 👇
 #InfinitySurvivors`;
   }
 }
 
+const GAME_URL = 'https://fantasticcrazyworld.github.io/infinity-survivors/';
+
 function shareToX(type) {
   const text = encodeURIComponent(getShareText(type));
-  window.open(`https://twitter.com/intent/tweet?text=${text}`, '_blank');
+  const url = encodeURIComponent(GAME_URL);
+  window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`, '_blank');
 }
 
 function copyResult(type) {
