@@ -552,6 +552,51 @@ canvas { display: block; }
 }
 #chest-reward-desc { color:#aaa; font-size:14px; }
 
+/* Upgrade shop */
+#upgrade-screen {
+  display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+  background:rgba(0,0,0,0.95); z-index:206;
+  justify-content:center; align-items:center; flex-direction:column;
+  overflow-y:auto;
+}
+#upgrade-screen.active { display:flex; }
+#upgrade-grid {
+  display:flex; gap:10px; flex-wrap:wrap; justify-content:center;
+  padding:0 12px; max-width:500px;
+}
+.upg-card {
+  background:#111; border:1px solid #333; border-radius:10px;
+  padding:12px; width:140px; text-align:center; cursor:pointer;
+  transition:all 0.2s;
+}
+.upg-card:hover { border-color:#ffdd00; transform:translateY(-2px); }
+.upg-card.maxed { border-color:#44ff44; opacity:0.7; cursor:default; }
+.upg-icon { font-size:28px; }
+.upg-name { color:#fff; font-size:12px; font-weight:700; font-family:'Orbitron',sans-serif; margin:4px 0; }
+.upg-level { color:#ffdd00; font-size:11px; font-family:'Orbitron',sans-serif; }
+.upg-cost { color:#ffaa00; font-size:11px; margin-top:4px; }
+.upg-desc { color:#888; font-size:10px; }
+
+/* Achievement popup */
+#achievement-popup {
+  position:fixed; top:60px; left:50%; transform:translateX(-50%);
+  background:linear-gradient(135deg,#1a1a00,#2a2a00); border:2px solid #ffdd00;
+  border-radius:12px; padding:12px 24px; z-index:300;
+  display:none; text-align:center; pointer-events:none;
+  animation:achSlide 0.5s ease-out;
+}
+#achievement-popup.show { display:block; }
+@keyframes achSlide { from{opacity:0;transform:translateX(-50%) translateY(-20px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+#ach-icon { font-size:24px; }
+#ach-name { color:#ffdd00; font-size:14px; font-weight:700; font-family:'Orbitron',sans-serif; }
+#ach-desc { color:#aaa; font-size:11px; }
+#ach-bonus { color:#ffaa00; font-size:10px; }
+
+/* Treasure chest in-game */
+.ingame-chest {
+  position:absolute; font-size:24px; cursor:pointer;
+}
+
 /* SP Gauge */
 #sp-bar-container {
   position: fixed; bottom: 96px; left: 50%; transform: translateX(-50%);
@@ -705,11 +750,26 @@ canvas { display: block; }
   <div id="title-best"></div>
   <div id="title-buttons">
     <button class="title-sub-btn" id="btn-daily">DAILY</button>
-    <button class="title-sub-btn" id="btn-shop">CHARACTERS</button>
-    <button class="title-sub-btn" id="btn-ranking">RANKING</button>
+    <button class="title-sub-btn" id="btn-upgrade">UPGRADE</button>
+    <button class="title-sub-btn" id="btn-shop">CHAR</button>
+    <button class="title-sub-btn" id="btn-ranking">RANK</button>
     <button class="title-sub-btn" id="btn-changename">NAME</button>
   </div>
   <div id="controls-hint">WASD / Arrow Keys to move | ESC to pause<br>Touch screen for mobile</div>
+</div>
+
+<div id="upgrade-screen">
+  <div style="color:#ffdd00;font-size:22px;font-weight:900;font-family:Orbitron,sans-serif;margin-bottom:4px">UPGRADES</div>
+  <div id="upgrade-coins" style="color:#ffaa00;font-size:14px;font-family:Orbitron,sans-serif;margin-bottom:14px"></div>
+  <div id="upgrade-grid"></div>
+  <button class="home-btn" id="upgrade-close" style="margin-top:14px">CLOSE</button>
+</div>
+
+<div id="achievement-popup">
+  <div id="ach-icon"></div>
+  <div id="ach-name"></div>
+  <div id="ach-desc"></div>
+  <div id="ach-bonus">+30 coins</div>
 </div>
 
 <div id="daily-screen">
@@ -851,6 +911,71 @@ const Storage = {
   },
   unlockChar(id) { const p=this.getProfile(); if(!p.unlockedChars.includes(id)){p.unlockedChars.push(id);} this.saveProfile(p); return p; },
   selectChar(id) { const p=this.getProfile(); p.selectedChar=id; this.saveProfile(p); return p; }
+};
+
+// ---- Permanent Upgrades ----
+const PERM_UPGRADES = [
+  { id:'pAtk', name:'Attack Power', icon:'\u2694\uFE0F', desc:'+5% damage per level', maxLv:10, cost:lv=>30+lv*20 },
+  { id:'pHp',  name:'Max HP', icon:'\u{1F49A}', desc:'+10 HP per level', maxLv:10, cost:lv=>25+lv*15 },
+  { id:'pSpd', name:'Move Speed', icon:'\u{1F3C3}', desc:'+3% speed per level', maxLv:10, cost:lv=>30+lv*20 },
+  { id:'pXp',  name:'XP Gain', icon:'\u{1F4D6}', desc:'+10% XP per level', maxLv:10, cost:lv=>40+lv*25 },
+  { id:'pSp',  name:'SP Charge', icon:'\u{1F300}', desc:'+8% SP charge per level', maxLv:10, cost:lv=>35+lv*20 },
+  { id:'pLuck',name:'Luck', icon:'\u{1F340}', desc:'Better chest rewards', maxLv:5,  cost:lv=>50+lv*40 },
+];
+
+const PermUpgrades = {
+  get() { try { return JSON.parse(localStorage.getItem('is_perms')||'{}'); } catch(e) { return {}; } },
+  save(d) { localStorage.setItem('is_perms', JSON.stringify(d)); },
+  getLevel(id) { return this.get()[id] || 0; },
+  upgrade(id) {
+    const def = PERM_UPGRADES.find(u=>u.id===id);
+    if (!def) return false;
+    const d = this.get();
+    const lv = d[id] || 0;
+    if (lv >= def.maxLv) return false;
+    const cost = def.cost(lv);
+    const prof = Storage.getProfile();
+    if (prof.coins < cost) return false;
+    prof.coins -= cost;
+    Storage.saveProfile(prof);
+    d[id] = lv + 1;
+    this.save(d);
+    return true;
+  }
+};
+
+// ---- Achievement System ----
+const ACHIEVEMENTS = [
+  { id:'kill100',   name:'Slayer',       icon:'\u{1F480}', desc:'Kill 100 enemies in one run', check:g=>g.totalKills>=100 },
+  { id:'kill500',   name:'Massacre',     icon:'\u{1F4A5}', desc:'Kill 500 enemies in one run', check:g=>g.totalKills>=500 },
+  { id:'combo50',   name:'Combo Master', icon:'\u{1F525}', desc:'Reach 50 combo', check:g=>g.maxCombo>=50 },
+  { id:'combo200',  name:'Combo God',    icon:'\u{1F31F}', desc:'Reach 200 combo', check:g=>g.maxCombo>=200 },
+  { id:'stage1',    name:'Forest Clear', icon:'\u{1F332}', desc:'Clear Stage 1', check:g=>g.currentStage>=1 && g.state==='stageClear' },
+  { id:'stage3',    name:'Halfway',      icon:'\u{1F3D4}\uFE0F', desc:'Clear Stage 3', check:g=>g.currentStage>=3 && g.state==='stageClear' },
+  { id:'allclear',  name:'Champion',     icon:'\u{1F451}', desc:'Clear all 5 stages', check:g=>g.currentStage>=4 && g.state==='stageClear' },
+  { id:'lv20',      name:'Veteran',      icon:'\u{2B50}', desc:'Reach Level 20', check:g=>g.player.level>=20 },
+  { id:'ult10',     name:'Devastator',   icon:'\u{1F4A3}', desc:'Use Ultimate 10 times', check:g=>(g.ultCount||0)>=10 },
+  { id:'nodmg60',   name:'Untouchable',  icon:'\u{1F6E1}\uFE0F', desc:'Survive 60s without damage', check:g=>g.noDmgTimer>=60 },
+  { id:'all6wep',   name:'Arsenal',      icon:'\u{1F52B}', desc:'Own all 6 weapons at once', check:g=>Object.keys(g.player.weapons).length>=6 },
+  { id:'score10k',  name:'High Scorer',  icon:'\u{1F3C6}', desc:'Score over 10,000', check:g=>calcScore(g)>=10000 },
+];
+
+const AchievementSys = {
+  getUnlocked() { try { return JSON.parse(localStorage.getItem('is_achievements')||'[]'); } catch(e) { return []; } },
+  save(arr) { localStorage.setItem('is_achievements', JSON.stringify(arr)); },
+  check(game) {
+    const unlocked = this.getUnlocked();
+    const newOnes = [];
+    for (const a of ACHIEVEMENTS) {
+      if (!unlocked.includes(a.id) && a.check(game)) {
+        unlocked.push(a.id);
+        newOnes.push(a);
+        Storage.addCoins(30); // bonus coins for achievement
+      }
+    }
+    if (newOnes.length) this.save(unlocked);
+    return newOnes;
+  }
 };
 
 // ---- Daily / Login / Chest System ----
@@ -1052,7 +1177,7 @@ function showRanking() {
 
 function goHome() {
   // Hide all screens, show title
-  ['gameover-screen','victory-screen','stage-clear','pause-screen','ranking-screen','shop-screen','daily-screen','chest-screen','levelup-screen','stage-intro','boss-hp-container'].forEach(id => {
+  ['gameover-screen','victory-screen','stage-clear','pause-screen','ranking-screen','shop-screen','daily-screen','chest-screen','upgrade-screen','levelup-screen','stage-intro','boss-hp-container'].forEach(id => {
     document.getElementById(id).classList.remove('active');
   });
   document.getElementById('title-screen').classList.remove('hidden');
@@ -1107,6 +1232,42 @@ function showShop() {
     grid.appendChild(card);
   }
   document.getElementById('shop-screen').classList.add('active');
+}
+
+function showUpgradeShop() {
+  const prof = Storage.getProfile();
+  document.getElementById('upgrade-coins').textContent = 'Coins: ' + prof.coins;
+  const grid = document.getElementById('upgrade-grid');
+  grid.innerHTML = '';
+  for (const u of PERM_UPGRADES) {
+    const lv = PermUpgrades.getLevel(u.id);
+    const maxed = lv >= u.maxLv;
+    const cost = maxed ? 0 : u.cost(lv);
+    const card = document.createElement('div');
+    card.className = 'upg-card' + (maxed?' maxed':'');
+    card.innerHTML = `<div class="upg-icon">${u.icon}</div><div class="upg-name">${u.name}</div><div class="upg-level">Lv.${lv}/${u.maxLv}</div><div class="upg-desc">${u.desc}</div>${maxed?'<div class="upg-cost" style="color:#44ff44">MAX</div>':`<div class="upg-cost">${cost} coins</div>`}`;
+    if (!maxed) {
+      card.onclick = () => {
+        if (PermUpgrades.upgrade(u.id)) showUpgradeShop();
+      };
+    }
+    grid.appendChild(card);
+  }
+  document.getElementById('upgrade-screen').classList.add('active');
+}
+
+function showAchievementPopup(ach) {
+  const el = document.getElementById('achievement-popup');
+  document.getElementById('ach-icon').textContent = ach.icon;
+  document.getElementById('ach-name').textContent = ach.name;
+  document.getElementById('ach-desc').textContent = ach.desc;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+function checkAchievements(g) {
+  const newOnes = AchievementSys.check(g);
+  if (newOnes.length) showAchievementPopup(newOnes[0]);
 }
 
 function getSelectedChar() {
@@ -1235,17 +1396,17 @@ const STAGES = [
     id: 3, name: 'FROZEN TUNDRA', subtitle: 'Silence before the storm',
     bg: '#08101a', grid: '#102030', tile: '#0a1520', accent: '#44aadd',
     envColor: '#aaddff66', envType: 'snow',
-    killGoal: 150, timeGoal: 0,
-    boss: { name: 'FROST TITAN', color: '#44aadd', accent: '#aaeeff', hp: 900, size: 55, speed: 40, dmg: 28 },
-    enemyScale: 1.6, spawnMul: 1.8
+    killGoal: 120, timeGoal: 0,
+    boss: { name: 'FROST TITAN', color: '#44aadd', accent: '#aaeeff', hp: 600, size: 55, speed: 40, dmg: 28 },
+    enemyScale: 1.4, spawnMul: 1.6
   },
   {
     id: 4, name: 'INFERNO VOLCANO', subtitle: 'The earth bleeds fire',
     bg: '#1a0808', grid: '#2a1010', tile: '#1e0a0a', accent: '#ff4422',
     envColor: '#ff440044', envType: 'ember',
-    killGoal: 160, timeGoal: 90,
-    boss: { name: 'INFERNO LORD', color: '#ff4422', accent: '#ffaa44', hp: 1200, size: 55, speed: 50, dmg: 35 },
-    enemyScale: 2.0, spawnMul: 2.0
+    killGoal: 140, timeGoal: 75,
+    boss: { name: 'INFERNO LORD', color: '#ff4422', accent: '#ffaa44', hp: 800, size: 55, speed: 50, dmg: 35 },
+    enemyScale: 1.8, spawnMul: 2.0
   },
   {
     id: 5, name: 'THE VOID', subtitle: 'Beyond the edge of reality',
@@ -1406,6 +1567,17 @@ class Game {
       if (ch.bonus.speed) this.player.speed *= (1 + ch.bonus.speed);
       if (ch.bonus.hpMul) { this.player.maxHp = Math.floor(this.player.maxHp * (1 + ch.bonus.hpMul)); this.player.hp = this.player.maxHp; }
     }
+    // Apply permanent upgrades
+    const pAtk = PermUpgrades.getLevel('pAtk');
+    const pHp = PermUpgrades.getLevel('pHp');
+    const pSpd = PermUpgrades.getLevel('pSpd');
+    this.permDmgBonus = pAtk * 0.05;
+    this.permSpCharge = PermUpgrades.getLevel('pSp') * 0.08;
+    this.permXpBonus = PermUpgrades.getLevel('pXp') * 0.10;
+    if (pHp) { this.player.maxHp += pHp * 10; this.player.hp = this.player.maxHp; }
+    if (pSpd) this.player.speed *= (1 + pSpd * 0.03);
+    // No-damage timer for achievement
+    this.noDmgTimer = 0;
     document.getElementById('title-screen').classList.add('hidden');
     document.getElementById('gameover-screen').classList.remove('active');
     document.getElementById('victory-screen').classList.remove('active');
@@ -1520,6 +1692,7 @@ class Game {
       document.getElementById('next-stage-btn').textContent = 'NEXT STAGE';
     }
     document.getElementById('stage-clear').classList.add('active');
+    checkAchievements(this);
     DailySystem.updateProgress('stage', this.stageDef.id);
     DailySystem.updateProgress('kills', this.totalKills);
     DailySystem.updateProgress('combo', this.maxCombo);
@@ -1598,6 +1771,7 @@ class Game {
     document.getElementById('victory-stats').innerHTML =
       `All stages cleared!<br>Total Kills: ${this.totalKills}<br>Total Time: ${this.formatTime(this.time)}<br>Final Level: ${this.player.level}<br>Max Combo: ${this.maxCombo}<br><span style="color:#ffdd00;font-size:28px;font-family:Orbitron,sans-serif">SCORE: ${score}</span><br><span style="color:#ffaa00">+${coinReward} coins</span> | <span style="color:#44ddff">+${xpReward} XP</span><br><span style="color:#888">User Lv.${updatedProf.userLevel}</span>`;
     document.getElementById('victory-screen').classList.add('active');
+    checkAchievements(this);
     DailySystem.updateProgress('kills', this.totalKills);
     DailySystem.updateProgress('combo', this.maxCombo);
     DailySystem.updateProgress('time', Math.floor(this.time));
@@ -1711,7 +1885,7 @@ class Game {
     p.invincible = 0.5;
     audio.play('playerHit', 0.4);
     vib(50);
-    this.combo = 0; this.comboTimer = 0;
+    this.combo = 0; this.comboTimer = 0; this.noDmgTimer = 0;
     this.spawnDmgNum(p.x, p.y-20, Math.round(dmg), '#ff4444');
     screenFlash('rgba(255,0,0,0.15)', 200);
     if (p.hp <= 0) { p.hp = 0; this.gameOver(); }
@@ -1827,7 +2001,7 @@ class Game {
   damageEnemy(e, dmg) {
     // Apply character damage bonus
     const charBonus = this.charDef && this.charDef.bonus && this.charDef.bonus.dmg ? this.charDef.bonus.dmg : 0;
-    const finalDmg = dmg * (1 + charBonus);
+    const finalDmg = dmg * (1 + charBonus + (this.permDmgBonus||0));
     e.hp -= finalDmg; e.hitFlash = 0.1;
     this.spawnDmgNum(e.x, e.y-e.size, Math.round(finalDmg), e.isBoss?'#ff8844':'#ffff00');
     // Hit sparks - flashy
@@ -1854,7 +2028,7 @@ class Game {
 
     // SP gauge charge (more SP from combos + char bonus)
     const spChargeBonus = this.charDef && this.charDef.bonus && this.charDef.bonus.spCharge ? this.charDef.bonus.spCharge : 0;
-    const spGain = (3 + Math.min(this.combo * 0.5, 10) + (e.isBoss ? 30 : 0)) * (1 + spChargeBonus);
+    const spGain = (3 + Math.min(this.combo * 0.5, 10) + (e.isBoss ? 30 : 0)) * (1 + spChargeBonus + (this.permSpCharge||0));
     this.player.sp = Math.min(this.player.sp + spGain, this.player.spMax);
     if (this.player.sp >= this.player.spMax && !this.player.ultReady) {
       this.player.ultReady = true;
@@ -1986,7 +2160,18 @@ class Game {
       const d = dist(g,p);
       if(d<p.pickupRange||g.mag){g.mag=true;const a=angle(g,p);g.x+=Math.cos(a)*600*dt;g.y+=Math.sin(a)*600*dt;}
       if(d<15){
-        p.xp+=g.xp; this.xpGems.splice(i,1);
+        if (g.isChest) {
+          // In-game treasure: bonus XP + random heal
+          const bonusXp = 5 + this.player.level * 2;
+          p.xp += bonusXp;
+          p.hp = Math.min(p.hp + 15, p.maxHp);
+          this.spawnDmgNum(p.x, p.y-30, '+HP', '#44ff44');
+          vib(30);
+          for(let j=0;j<8;j++) addParticle(this.particles,{x:g.x,y:g.y,vx:rand(-80,80),vy:rand(-80,80),life:0.4,maxLife:0.4,size:rand(3,6),color:'#ffdd00'});
+        } else {
+          p.xp += Math.ceil(g.xp * (1+(this.permXpBonus||0)));
+        }
+        this.xpGems.splice(i,1);
         audio.play('xp',0.08);
         // Sparkle
         for(let j=0;j<3;j++) addParticle(this.particles,{x:g.x,y:g.y,vx:rand(-40,40),vy:rand(-60,-20),life:0.3,maxLife:0.3,size:rand(1,3),color:g.color});
@@ -2073,6 +2258,7 @@ class Game {
     document.getElementById('gameover-stats').innerHTML =
       `Stage: ${this.stageDef.name}<br>Time: ${this.formatTime(this.time)}<br>Level: ${this.player.level}<br>Kills: ${this.totalKills}<br>Max Combo: ${this.maxCombo}<br><span style="color:#ffdd00;font-size:24px;font-family:Orbitron,sans-serif">SCORE: ${score}</span><br><span style="color:#ffaa00">+${coinReward} coins</span> | <span style="color:#44ddff">+${xpReward} XP</span><br><span style="color:#888;font-size:12px">User Lv.${updatedProf.userLevel}</span>`;
     document.getElementById('gameover-screen').classList.add('active');
+    checkAchievements(this);
     // Update daily challenges
     DailySystem.updateProgress('kills', this.totalKills);
     DailySystem.updateProgress('combo', this.maxCombo);
@@ -2122,6 +2308,19 @@ class Game {
     if (this.bossClearTimer > 0) {
       this.bossClearTimer -= gameDt;
       if (this.bossClearTimer <= 0) { this.bossClearTimer = 0; this.stageClear(); return; }
+    }
+
+    // No-damage timer for achievement
+    this.noDmgTimer = (this.noDmgTimer||0) + gameDt;
+
+    // Spawn in-game treasure chest every 45 seconds
+    this.chestSpawnTimer = (this.chestSpawnTimer||0) - gameDt;
+    if (this.chestSpawnTimer <= 0) {
+      this.chestSpawnTimer = 45;
+      if (this.stageTime > 10) { // not immediately
+        const ca = rand(0,Math.PI*2), cd = rand(150,300);
+        this.xpGems.push({ x:this.player.x+Math.cos(ca)*cd, y:this.player.y+Math.sin(ca)*cd, xp:0, size:14, color:'#ffdd00', mag:false, isChest:true });
+      }
     }
 
     this.updatePlayer(gameDt);
@@ -2822,6 +3021,14 @@ class Game {
   drawXPGems() {
     for (const g of this.xpGems) {
       ctx.save(); ctx.translate(g.x, g.y);
+      if (g.isChest) {
+        // Draw as treasure chest
+        const pulse = Math.sin(this.time*4)*2;
+        ctx.fillStyle='#ffdd0033';ctx.beginPath();ctx.arc(0,0,18+pulse,0,Math.PI*2);ctx.fill();
+        ctx.font='20px serif';ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.fillText('\u{1F381}',0,0);
+        ctx.restore(); continue;
+      }
       const pulse = Math.sin(this.time*6+g.x)*0.15+1;
       // Glow
       ctx.fillStyle = g.color+'33';
@@ -2954,6 +3161,9 @@ document.getElementById('next-stage-btn').onclick = () => {
 document.getElementById('go-home-btn').onclick = goHome;
 document.getElementById('vic-home-btn').onclick = goHome;
 document.getElementById('pause-home').onclick = goHome;
+// Upgrades
+document.getElementById('btn-upgrade').onclick = showUpgradeShop;
+document.getElementById('upgrade-close').onclick = () => { document.getElementById('upgrade-screen').classList.remove('active'); updateTitleScreen(); };
 // Daily
 document.getElementById('btn-daily').onclick = showDailyScreen;
 document.getElementById('daily-close').onclick = () => { document.getElementById('daily-screen').classList.remove('active'); updateTitleScreen(); };
