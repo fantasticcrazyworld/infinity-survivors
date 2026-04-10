@@ -537,6 +537,50 @@ canvas { display: block; }
   text-shadow: 0 0 8px #ffdd0044;
 }
 #sp-hint.show { opacity: 1; animation: pulse 0.5s ease-in-out infinite alternate; }
+
+/* Character Shop */
+#shop-screen {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.95); z-index: 205;
+  justify-content: center; align-items: center; flex-direction: column;
+  overflow-y: auto;
+}
+#shop-screen.active { display: flex; }
+#shop-title {
+  color: #ffdd00; font-size: 24px; font-weight: 900;
+  font-family: 'Orbitron', sans-serif; margin-bottom: 8px;
+}
+#shop-coins {
+  color: #ffaa00; font-size: 16px; font-family: 'Orbitron', sans-serif;
+  margin-bottom: 16px;
+}
+#shop-grid {
+  display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;
+  padding: 0 16px; max-width: 600px;
+}
+.char-card {
+  background: #111; border: 2px solid #333; border-radius: 12px;
+  padding: 14px; width: 150px; text-align: center; cursor: pointer;
+  transition: all 0.2s; position: relative;
+}
+.char-card:hover { border-color: #888; transform: translateY(-2px); }
+.char-card.selected { border-color: #ffdd00; box-shadow: 0 0 15px #ffdd0033; }
+.char-card.locked { opacity: 0.5; cursor: default; }
+.char-preview {
+  width: 40px; height: 40px; border-radius: 50%; margin: 0 auto 8px;
+  border: 2px solid #555;
+}
+.char-name { color: #fff; font-size: 14px; font-weight: 700; font-family: 'Orbitron', sans-serif; }
+.char-desc { color: #888; font-size: 11px; margin: 4px 0; }
+.char-cost { color: #ffaa00; font-size: 12px; font-family: 'Orbitron', sans-serif; }
+.char-cost.owned { color: #44ff44; }
+.char-lock-reason { color: #ff6666; font-size: 10px; }
+
+/* Title profile bar */
+#title-profile {
+  color: #aaa; font-size: 12px; font-family: 'Orbitron', sans-serif;
+  margin-bottom: 4px;
+}
 </style>
 </head>
 <body>
@@ -589,15 +633,24 @@ canvas { display: block; }
 <div id="title-screen">
   <canvas id="title-bg"></canvas>
   <div id="title-user"></div>
+  <div id="title-profile"></div>
   <div id="game-title">INFINITY<br>SURVIVORS</div>
   <div id="title-subtitle">SURVIVE THE ENDLESS HORDE</div>
   <button id="start-btn">START</button>
   <div id="title-best"></div>
   <div id="title-buttons">
+    <button class="title-sub-btn" id="btn-shop">CHARACTERS</button>
     <button class="title-sub-btn" id="btn-ranking">RANKING</button>
-    <button class="title-sub-btn" id="btn-changename">CHANGE NAME</button>
+    <button class="title-sub-btn" id="btn-changename">NAME</button>
   </div>
   <div id="controls-hint">WASD / Arrow Keys to move | ESC to pause<br>Touch screen for mobile</div>
+</div>
+
+<div id="shop-screen">
+  <div id="shop-title">CHARACTERS</div>
+  <div id="shop-coins"></div>
+  <div id="shop-grid"></div>
+  <button class="home-btn" id="shop-close" style="margin-top:16px">CLOSE</button>
 </div>
 
 <div id="ranking-screen">
@@ -692,20 +745,39 @@ const audio = new AudioSystem();
 const Storage = {
   getUser() { return localStorage.getItem('is_username') || ''; },
   setUser(n) { localStorage.setItem('is_username', n); },
-  getRankings() {
-    try { return JSON.parse(localStorage.getItem('is_rankings') || '[]'); } catch(e) { return []; }
-  },
+  getRankings() { try { return JSON.parse(localStorage.getItem('is_rankings')||'[]'); } catch(e) { return []; } },
   addScore(entry) {
-    const r = this.getRankings();
-    r.push(entry);
-    r.sort((a,b) => b.score - a.score);
+    const r = this.getRankings(); r.push(entry); r.sort((a,b) => b.score - a.score);
     localStorage.setItem('is_rankings', JSON.stringify(r.slice(0, 20)));
   },
-  getBest() {
-    const r = this.getRankings();
-    return r.length ? r[0] : null;
-  }
+  getBest() { const r = this.getRankings(); return r.length ? r[0] : null; },
+  // Profile data
+  getProfile() {
+    try { return JSON.parse(localStorage.getItem('is_profile')||'null') || { userLevel:1, userXp:0, coins:0, unlockedChars:['blue'], selectedChar:'blue' }; }
+    catch(e) { return { userLevel:1, userXp:0, coins:0, unlockedChars:['blue'], selectedChar:'blue' }; }
+  },
+  saveProfile(p) { localStorage.setItem('is_profile', JSON.stringify(p)); },
+  addCoins(n) { const p=this.getProfile(); p.coins+=n; this.saveProfile(p); return p; },
+  addUserXp(n) {
+    const p=this.getProfile();
+    p.userXp += n;
+    const xpTable = lvl => Math.floor(50 + lvl * 30 + lvl * lvl * 5);
+    while (p.userXp >= xpTable(p.userLevel)) { p.userXp -= xpTable(p.userLevel); p.userLevel++; }
+    this.saveProfile(p); return p;
+  },
+  unlockChar(id) { const p=this.getProfile(); if(!p.unlockedChars.includes(id)){p.unlockedChars.push(id);} this.saveProfile(p); return p; },
+  selectChar(id) { const p=this.getProfile(); p.selectedChar=id; this.saveProfile(p); return p; }
 };
+
+// ---- Character Definitions ----
+const CHARACTERS = [
+  { id:'blue',  name:'Azure',    color:'#5599ee', accent:'#aaddff', scarf:'#ff6688', cost:0,    desc:'The original hero', unlockLevel:0 },
+  { id:'green', name:'Jade',     color:'#44bb66', accent:'#88ffaa', scarf:'#ffaa44', cost:100,  desc:'Forest spirit, +10% speed', unlockLevel:0, bonus:{speed:0.10} },
+  { id:'red',   name:'Blaze',    color:'#dd4444', accent:'#ffaa88', scarf:'#ffdd00', cost:200,  desc:'Fire soul, +15% damage', unlockLevel:3, bonus:{dmg:0.15} },
+  { id:'purple',name:'Mystic',   color:'#9944dd', accent:'#ddaaff', scarf:'#44ffdd', cost:300,  desc:'Void walker, +20% SP charge', unlockLevel:5, bonus:{spCharge:0.20} },
+  { id:'gold',  name:'Solar',    color:'#ddaa22', accent:'#ffee88', scarf:'#ff4488', cost:500,  desc:'Sun god, +10% all stats', unlockLevel:8, bonus:{speed:0.05,dmg:0.05,spCharge:0.10} },
+  { id:'dark',  name:'Shadow',   color:'#444466', accent:'#8888aa', scarf:'#ff0044', cost:1000, desc:'Reaper, +25% damage, -10% HP', unlockLevel:12, bonus:{dmg:0.25,hpMul:-0.10} },
+];
 
 function calcScore(g) {
   return g.totalKills * 10 + Math.floor(g.time) * 5 + g.player.level * 50 + (g.currentStage) * 500 + g.maxCombo * 3;
@@ -731,7 +803,7 @@ function showRanking() {
 
 function goHome() {
   // Hide all screens, show title
-  ['gameover-screen','victory-screen','stage-clear','pause-screen','ranking-screen','levelup-screen','stage-intro','boss-hp-container'].forEach(id => {
+  ['gameover-screen','victory-screen','stage-clear','pause-screen','ranking-screen','shop-screen','levelup-screen','stage-intro','boss-hp-container'].forEach(id => {
     document.getElementById(id).classList.remove('active');
   });
   document.getElementById('title-screen').classList.remove('hidden');
@@ -741,9 +813,54 @@ function goHome() {
 
 function updateTitleScreen() {
   const user = Storage.getUser();
+  const prof = Storage.getProfile();
   document.getElementById('title-user').textContent = user ? `Welcome, ${user}` : '';
+  document.getElementById('title-profile').textContent = `Lv.${prof.userLevel} | ${prof.coins} coins`;
   const best = Storage.getBest();
-  document.getElementById('title-best').textContent = best ? `Best: ${best.score} pts (${best.name})` : '';
+  document.getElementById('title-best').textContent = best ? `Best: ${best.score} pts` : '';
+}
+
+function showShop() {
+  const prof = Storage.getProfile();
+  document.getElementById('shop-coins').textContent = `Coins: ${prof.coins}`;
+  const grid = document.getElementById('shop-grid');
+  grid.innerHTML = '';
+  for (const ch of CHARACTERS) {
+    const owned = prof.unlockedChars.includes(ch.id);
+    const selected = prof.selectedChar === ch.id;
+    const levelOk = prof.userLevel >= ch.unlockLevel;
+    const canBuy = !owned && levelOk && prof.coins >= ch.cost;
+    const card = document.createElement('div');
+    card.className = 'char-card' + (selected?' selected':'') + (!owned&&!canBuy?' locked':'');
+    card.innerHTML = `
+      <div class="char-preview" style="background:${ch.color};border-color:${ch.accent}"></div>
+      <div class="char-name">${ch.name}</div>
+      <div class="char-desc">${ch.desc}</div>
+      ${owned ? (selected?'<div class="char-cost owned">SELECTED</div>':'<div class="char-cost owned">OWNED</div>') :
+        (!levelOk ? `<div class="char-lock-reason">Unlock at User Lv.${ch.unlockLevel}</div><div class="char-cost">${ch.cost} coins</div>` :
+        `<div class="char-cost">${ch.cost} coins</div>`)}
+    `;
+    card.onclick = () => {
+      if (owned && !selected) {
+        Storage.selectChar(ch.id);
+        showShop();
+      } else if (!owned && canBuy) {
+        const p2 = Storage.getProfile();
+        p2.coins -= ch.cost;
+        Storage.saveProfile(p2);
+        Storage.unlockChar(ch.id);
+        Storage.selectChar(ch.id);
+        showShop();
+      }
+    };
+    grid.appendChild(card);
+  }
+  document.getElementById('shop-screen').classList.add('active');
+}
+
+function getSelectedChar() {
+  const prof = Storage.getProfile();
+  return CHARACTERS.find(c => c.id === prof.selectedChar) || CHARACTERS[0];
 }
 
 // ---- Performance ----
@@ -1022,9 +1139,17 @@ class Game {
   start() {
     this.state = 'playing';
     this.init();
+    // Apply character bonuses
+    const ch = getSelectedChar();
+    this.charDef = ch;
+    if (ch.bonus) {
+      if (ch.bonus.speed) this.player.speed *= (1 + ch.bonus.speed);
+      if (ch.bonus.hpMul) { this.player.maxHp = Math.floor(this.player.maxHp * (1 + ch.bonus.hpMul)); this.player.hp = this.player.maxHp; }
+    }
     document.getElementById('title-screen').classList.add('hidden');
     document.getElementById('gameover-screen').classList.remove('active');
     document.getElementById('victory-screen').classList.remove('active');
+    document.getElementById('shop-screen').classList.remove('active');
     audio.init();
   }
 
@@ -1117,7 +1242,12 @@ class Game {
       });
     }
 
-    const stats = `Stage ${this.stageDef.id}: ${this.stageDef.name}<br>Kills: ${this.stageKills}<br>Time: ${this.formatTime(this.stageTime)}<br>Level: ${this.player.level}`;
+    // Rewards
+    const coinReward = 20 + this.stageDef.id * 15 + Math.floor(this.stageKills * 0.5);
+    const xpReward = 30 + this.stageDef.id * 20;
+    Storage.addCoins(coinReward);
+    const updatedProf = Storage.addUserXp(xpReward);
+    const stats = `Stage ${this.stageDef.id}: ${this.stageDef.name}<br>Kills: ${this.stageKills}<br>Time: ${this.formatTime(this.stageTime)}<br>Level: ${this.player.level}<br><br><span style="color:#ffaa00">+${coinReward} coins</span> | <span style="color:#44ddff">+${xpReward} XP</span><br><span style="color:#888;font-size:13px">User Lv.${updatedProf.userLevel}</span>`;
     document.getElementById('clear-stats').innerHTML = stats;
 
     if (this.currentStage >= STAGES.length - 1) {
@@ -1196,8 +1326,12 @@ class Game {
     this.state = 'victory';
     const score = calcScore(this);
     Storage.addScore({ name: Storage.getUser()||'???', score, stage: 5, time: this.formatTime(this.time), kills: this.totalKills, level: this.player.level, combo: this.maxCombo, date: new Date().toLocaleDateString() });
+    const coinReward = 200 + this.totalKills;
+    const xpReward = 200 + this.totalKills;
+    Storage.addCoins(coinReward);
+    const updatedProf = Storage.addUserXp(xpReward);
     document.getElementById('victory-stats').innerHTML =
-      `All stages cleared!<br>Total Kills: ${this.totalKills}<br>Total Time: ${this.formatTime(this.time)}<br>Final Level: ${this.player.level}<br>Max Combo: ${this.maxCombo}<br><span style="color:#ffdd00;font-size:28px;font-family:Orbitron,sans-serif">SCORE: ${score}</span>`;
+      `All stages cleared!<br>Total Kills: ${this.totalKills}<br>Total Time: ${this.formatTime(this.time)}<br>Final Level: ${this.player.level}<br>Max Combo: ${this.maxCombo}<br><span style="color:#ffdd00;font-size:28px;font-family:Orbitron,sans-serif">SCORE: ${score}</span><br><span style="color:#ffaa00">+${coinReward} coins</span> | <span style="color:#44ddff">+${xpReward} XP</span><br><span style="color:#888">User Lv.${updatedProf.userLevel}</span>`;
     document.getElementById('victory-screen').classList.add('active');
   }
 
@@ -1368,8 +1502,11 @@ class Game {
   }
 
   damageEnemy(e, dmg) {
-    e.hp -= dmg; e.hitFlash = 0.1;
-    this.spawnDmgNum(e.x, e.y-e.size, Math.round(dmg), e.isBoss?'#ff8844':'#ffff00');
+    // Apply character damage bonus
+    const charBonus = this.charDef && this.charDef.bonus && this.charDef.bonus.dmg ? this.charDef.bonus.dmg : 0;
+    const finalDmg = dmg * (1 + charBonus);
+    e.hp -= finalDmg; e.hitFlash = 0.1;
+    this.spawnDmgNum(e.x, e.y-e.size, Math.round(finalDmg), e.isBoss?'#ff8844':'#ffff00');
     // Hit sparks - flashy
     for(let i=0;i<6;i++) {
       const a=rand(0,Math.PI*2), spd=rand(60,180);
@@ -1392,8 +1529,9 @@ class Game {
     this.combo++;
     this.comboTimer = 2.0; // 2 sec to keep combo
 
-    // SP gauge charge (more SP from combos)
-    const spGain = 3 + Math.min(this.combo * 0.5, 10) + (e.isBoss ? 30 : 0);
+    // SP gauge charge (more SP from combos + char bonus)
+    const spChargeBonus = this.charDef && this.charDef.bonus && this.charDef.bonus.spCharge ? this.charDef.bonus.spCharge : 0;
+    const spGain = (3 + Math.min(this.combo * 0.5, 10) + (e.isBoss ? 30 : 0)) * (1 + spChargeBonus);
     this.player.sp = Math.min(this.player.sp + spGain, this.player.spMax);
     if (this.player.sp >= this.player.spMax && !this.player.ultReady) {
       this.player.ultReady = true;
@@ -1604,8 +1742,13 @@ class Game {
     document.getElementById('boss-hp-container').classList.remove('active');
     const score = calcScore(this);
     Storage.addScore({ name: Storage.getUser()||'???', score, stage: this.currentStage+1, time: this.formatTime(this.time), kills: this.totalKills, level: this.player.level, combo: this.maxCombo, date: new Date().toLocaleDateString() });
+    // Rewards even on game over
+    const coinReward = Math.floor(this.totalKills * 0.3) + this.currentStage * 10;
+    const xpReward = Math.floor(this.totalKills * 0.5) + 10;
+    Storage.addCoins(coinReward);
+    const updatedProf = Storage.addUserXp(xpReward);
     document.getElementById('gameover-stats').innerHTML =
-      `Stage: ${this.stageDef.name}<br>Time: ${this.formatTime(this.time)}<br>Level: ${this.player.level}<br>Kills: ${this.totalKills}<br>Max Combo: ${this.maxCombo}<br><span style="color:#ffdd00;font-size:24px;font-family:Orbitron,sans-serif">SCORE: ${score}</span>`;
+      `Stage: ${this.stageDef.name}<br>Time: ${this.formatTime(this.time)}<br>Level: ${this.player.level}<br>Kills: ${this.totalKills}<br>Max Combo: ${this.maxCombo}<br><span style="color:#ffdd00;font-size:24px;font-family:Orbitron,sans-serif">SCORE: ${score}</span><br><span style="color:#ffaa00">+${coinReward} coins</span> | <span style="color:#44ddff">+${xpReward} XP</span><br><span style="color:#888;font-size:12px">User Lv.${updatedProf.userLevel}</span>`;
     document.getElementById('gameover-screen').classList.add('active');
   }
 
@@ -1856,8 +1999,9 @@ class Game {
       ctx.beginPath(); ctx.ellipse(0,20-bob,18,6,0,0,Math.PI*2); ctx.fill();
 
       // Scarf / Muffler (behind body)
+      const ch = game.charDef || CHARACTERS[0];
       const sw = Math.sin(p.bobTimer*4)*4;
-      ctx.fillStyle = '#ff6688';
+      ctx.fillStyle = ch.scarf;
       // Left tail
       ctx.beginPath();
       ctx.moveTo(-10,-2);
@@ -1873,7 +2017,7 @@ class Game {
       ctx.quadraticCurveTo(14-sw*0.3,8,8,0);
       ctx.closePath(); ctx.fill();
       // Scarf highlight
-      ctx.fillStyle = '#ff88aa44';
+      ctx.fillStyle = ch.scarf + '44';
       ctx.beginPath();
       ctx.moveTo(-10,-2);
       ctx.quadraticCurveTo(-16+sw,4,-18+sw*1.2,10);
@@ -1883,13 +2027,12 @@ class Game {
       // Round fluffy body
       const R = 16 * breathe;
       if (isMobile) {
-        ctx.fillStyle = '#5599ee';
+        ctx.fillStyle = ch.color;
       } else {
         const bodyG = ctx.createRadialGradient(-4,-4,3,0,0,R);
-        bodyG.addColorStop(0, '#aaddff');
-        bodyG.addColorStop(0.4, '#77bbff');
-        bodyG.addColorStop(0.8, '#4499ee');
-        bodyG.addColorStop(1, '#3377cc');
+        bodyG.addColorStop(0, ch.accent);
+        bodyG.addColorStop(0.5, ch.color);
+        bodyG.addColorStop(1, ch.color);
         ctx.fillStyle = bodyG;
       }
       ctx.beginPath(); ctx.arc(0,0,R,0,Math.PI*2); ctx.fill();
@@ -1900,18 +2043,18 @@ class Game {
       ctx.beginPath(); ctx.ellipse(6,3,5,4,0.5,0,Math.PI*2); ctx.fill();
 
       // Scarf wrap (front)
-      ctx.fillStyle = '#ff6688';
+      ctx.fillStyle = ch.scarf;
       ctx.beginPath();
       ctx.ellipse(0,-R*0.55,R*0.75,5,0,0,Math.PI*2);
       ctx.fill();
-      ctx.fillStyle = '#ff88aa';
+      ctx.fillStyle = ch.scarf + 'aa';
       ctx.beginPath();
       ctx.ellipse(0,-R*0.55,R*0.75,3,-0.1,Math.PI,Math.PI*2);
       ctx.fill();
 
       // Ears (pointy cat-like)
       // Left ear
-      ctx.fillStyle = '#4499ee';
+      ctx.fillStyle = ch.color;
       ctx.beginPath();
       ctx.moveTo(-8,-R*0.7);
       ctx.quadraticCurveTo(-14,-R*1.5,-4,-R*0.9);
@@ -1990,7 +2133,7 @@ class Game {
       ctx.fill();
 
       // Small feet at bottom
-      ctx.fillStyle = '#3388dd';
+      ctx.fillStyle = ch.color;
       ctx.beginPath(); ctx.ellipse(-6,R*0.85,4,3,0,0,Math.PI*2); ctx.fill();
       ctx.beginPath(); ctx.ellipse(6,R*0.85,4,3,0,0,Math.PI*2); ctx.fill();
 
@@ -2376,6 +2519,9 @@ document.getElementById('next-stage-btn').onclick = () => {
 document.getElementById('go-home-btn').onclick = goHome;
 document.getElementById('vic-home-btn').onclick = goHome;
 document.getElementById('pause-home').onclick = goHome;
+// Shop
+document.getElementById('btn-shop').onclick = showShop;
+document.getElementById('shop-close').onclick = () => { document.getElementById('shop-screen').classList.remove('active'); updateTitleScreen(); };
 // Ranking
 document.getElementById('btn-ranking').onclick = showRanking;
 document.getElementById('ranking-close').onclick = () => document.getElementById('ranking-screen').classList.remove('active');
