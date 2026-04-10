@@ -4,18 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Infinity Survivors - Free Browser Roguelike Survivor Game</title>
-<meta name="description" content="Survive the endless horde! A Vampire Survivors-style browser game with 5 stages, 8 characters, weapon evolution, and combo system. Play instantly - no download needed.">
+<meta name="description" content="Survive the endless horde! A Vampire Survivors-style browser game with 15 stages, 14 characters, 3 worlds, weapon evolution, and combo system. Play instantly - no download needed.">
 <meta name="keywords" content="browser game, roguelike, survivor, vampire survivors, free game, HTML5 game, indie game">
 <meta name="author" content="fantasticcrazyworld">
 <!-- Open Graph (Facebook, Discord, LINE) -->
 <meta property="og:title" content="Infinity Survivors - Can You Survive?">
-<meta property="og:description" content="Free browser roguelike survivor game. 5 stages, 8 characters, weapon evolution, 30 achievements. Play now - no download!">
+<meta property="og:description" content="Free browser roguelike survivor game. 15 stages, 14 characters, 3 worlds, weapon evolution, 30 achievements. Play now - no download!">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://fantasticcrazyworld.github.io/infinity-survivors/">
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Infinity Survivors - Free Browser Game">
-<meta name="twitter:description" content="Vampire Survivors-style roguelike in your browser. 5 stages, bosses, combo system, weapon evolution. Play instantly!">
+<meta name="twitter:description" content="Vampire Survivors-style roguelike in your browser. 15 stages, 3 worlds, bosses, combo system, weapon evolution. Play instantly!">
 <!-- PWA / Mobile -->
 <meta name="theme-color" content="#0a0a0a">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -504,6 +504,39 @@ canvas { display: block; }
 }
 .title-sub-btn:hover { color: #fff; border-color: #888; }
 
+/* Stage Select */
+#stage-select {
+  display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+  background:rgba(0,0,0,0.95); z-index:205;
+  justify-content:center; align-items:center; flex-direction:column;
+  overflow-y:auto;
+}
+#stage-select.active { display:flex; }
+#stage-select-title {
+  color:#ffdd00; font-size:22px; font-weight:900;
+  font-family:'Orbitron',sans-serif; margin-bottom:6px;
+  text-shadow:0 0 15px #ffdd0044;
+}
+.world-section { margin:10px 0; width:340px; max-width:92vw; }
+.world-title {
+  color:#aaa; font-size:14px; font-weight:700; font-family:'Orbitron',sans-serif;
+  margin-bottom:6px; padding-left:4px; letter-spacing:2px;
+}
+.stage-grid { display:flex; flex-wrap:wrap; gap:6px; }
+.stage-card {
+  width:62px; height:72px; background:#111; border:1px solid #333;
+  border-radius:8px; display:flex; flex-direction:column;
+  justify-content:center; align-items:center; cursor:pointer;
+  transition:all 0.2s; font-family:'Orbitron',sans-serif;
+}
+.stage-card:hover:not(.locked) { border-color:#ffdd00; transform:scale(1.05); }
+.stage-card.locked { opacity:0.3; cursor:default; }
+.stage-card.cleared { border-color:#44ff44; background:#0a1a0a; }
+.stage-card.current { border-color:#ffdd00; background:#1a1a00; animation:pulse 1s ease-in-out infinite alternate; }
+.stage-num { font-size:16px; font-weight:700; color:#fff; }
+.stage-label { font-size:7px; color:#888; margin-top:2px; text-align:center; max-width:58px; overflow:hidden; }
+#stage-select-close { margin-top:14px; }
+
 /* Daily / Login / Chest UI */
 #daily-screen {
   display:none; position:fixed; top:0; left:0; width:100%; height:100%;
@@ -687,15 +720,15 @@ canvas { display: block; }
 }
 .char-card {
   background: #111; border: 2px solid #333; border-radius: 12px;
-  padding: 14px; width: 150px; text-align: center; cursor: pointer;
+  padding: 14px 10px; width: 160px; text-align: center; cursor: pointer;
   transition: all 0.2s; position: relative;
 }
 .char-card:hover { border-color: #888; transform: translateY(-2px); }
 .char-card.selected { border-color: #ffdd00; box-shadow: 0 0 15px #ffdd0033; }
 .char-card.locked { opacity: 0.5; cursor: default; }
 .char-preview {
-  width: 40px; height: 40px; border-radius: 50%; margin: 0 auto 8px;
-  border: 2px solid #555;
+  width: 80px; height: 80px; margin: 0 auto 8px;
+  image-rendering: pixelated;
 }
 .char-name { color: #fff; font-size: 14px; font-weight: 700; font-family: 'Orbitron', sans-serif; }
 .char-desc { color: #888; font-size: 11px; margin: 4px 0; }
@@ -767,6 +800,7 @@ canvas { display: block; }
   <div id="mode-buttons" style="display:flex;gap:8px;margin-top:10px"></div>
   <div id="title-best"></div>
   <div id="title-buttons">
+    <button class="title-sub-btn" id="btn-stages">STAGE</button>
     <button class="title-sub-btn" id="btn-daily">DAILY</button>
     <button class="title-sub-btn" id="btn-upgrade">UPGRADE</button>
     <button class="title-sub-btn" id="btn-shop">CHAR</button>
@@ -819,6 +853,12 @@ canvas { display: block; }
   <div id="ranking-title">RANKING</div>
   <div id="ranking-list"></div>
   <button class="home-btn" id="ranking-close">CLOSE</button>
+</div>
+
+<div id="stage-select">
+  <div id="stage-select-title">STAGE SELECT</div>
+  <div id="stage-select-worlds"></div>
+  <button class="home-btn" id="stage-select-close">CLOSE</button>
 </div>
 
 <div id="pause-screen">
@@ -973,7 +1013,7 @@ const ACHIEVEMENTS = [
   { id:'combo200',  name:'Combo God',    icon:'\u{1F31F}', desc:'Reach 200 combo', check:g=>g.maxCombo>=200 },
   { id:'stage1',    name:'Forest Clear', icon:'\u{1F332}', desc:'Clear Stage 1', check:g=>g.currentStage>=1 && g.state==='stageClear' },
   { id:'stage3',    name:'Halfway',      icon:'\u{1F3D4}\uFE0F', desc:'Clear Stage 3', check:g=>g.currentStage>=3 && g.state==='stageClear' },
-  { id:'allclear',  name:'Champion',     icon:'\u{1F451}', desc:'Clear all 5 stages', check:g=>g.currentStage>=4 && g.state==='stageClear' },
+  { id:'allclear',  name:'Champion',     icon:'\u{1F451}', desc:'Clear all 15 stages', check:g=>g.currentStage>=STAGES.length-1 && g.state==='stageClear' },
   { id:'lv20',      name:'Veteran',      icon:'\u{2B50}', desc:'Reach Level 20', check:g=>g.player.level>=20 },
   { id:'ult10',     name:'Devastator',   icon:'\u{1F4A3}', desc:'Use Ultimate 10 times', check:g=>(g.ultCount||0)>=10 },
   { id:'nodmg60',   name:'Untouchable',  icon:'\u{1F6E1}\uFE0F', desc:'Survive 60s without damage', check:g=>g.noDmgTimer>=60 },
@@ -990,7 +1030,7 @@ const ACHIEVEMENTS = [
   { id:'endless5',  name:'Survivor',     icon:'\u{1F9DF}', desc:'Survive 5 min in Endless', check:g=>g.gameMode==='endless'&&g.time>=300 },
   { id:'endless10', name:'Immortal',     icon:'\u{1F480}', desc:'Survive 10 min in Endless', check:g=>g.gameMode==='endless'&&g.time>=600 },
   { id:'hard1',     name:'Fearless',     icon:'\u{1F608}', desc:'Clear Stage 1 on Hard', check:g=>g.gameMode==='hard'&&g.currentStage>=1&&g.state==='stageClear' },
-  { id:'hardAll',   name:'Godlike',      icon:'\u{1F451}', desc:'Clear all stages on Hard', check:g=>g.gameMode==='hard'&&g.currentStage>=4&&g.state==='stageClear' },
+  { id:'hardAll',   name:'Godlike',      icon:'\u{1F451}', desc:'Clear all stages on Hard', check:g=>g.gameMode==='hard'&&g.currentStage>=STAGES.length-1&&g.state==='stageClear' },
   { id:'evolve1',   name:'Transcend',    icon:'\u{1F31F}', desc:'Evolve a weapon', check:g=>g.evolvedWeapons>0 },
   { id:'evolveAll', name:'Perfection',   icon:'\u{1F4AF}', desc:'Evolve all 6 weapons', check:g=>g.evolvedWeapons>=6 },
   { id:'allChars',  name:'Collector',    icon:'\u{1F3AD}', desc:'Unlock all characters', check:g=>Storage.getProfile().unlockedChars.length>=8 },
@@ -1189,6 +1229,12 @@ const CHARACTERS = [
   { id:'purple',name:'Mystic',   color:'#9944dd', accent:'#ddaaff', scarf:'#44ffdd', shape:'ghost', cost:300,  desc:'Void ghost, +20% SP charge', unlockLevel:5, bonus:{spCharge:0.20} },
   { id:'gold',  name:'Solar',    color:'#ddaa22', accent:'#ffee88', scarf:'#ff4488', shape:'star',  cost:500,  desc:'Star guardian, +10% all stats', unlockLevel:8, bonus:{speed:0.05,dmg:0.05,spCharge:0.10} },
   { id:'dark',  name:'Shadow',   color:'#444466', accent:'#8888aa', scarf:'#ff0044', shape:'reaper',cost:1000, desc:'Dark reaper, +25% dmg, -10% HP', unlockLevel:12, bonus:{dmg:0.25,hpMul:-0.10} },
+  { id:'ice',   name:'Frost',    color:'#44ccff', accent:'#bbf0ff', scarf:'#0066aa', shape:'round', cost:400,  desc:'Ice mage, +20% freeze duration, -5% speed', unlockLevel:6, bonus:{freezeDur:0.20, speed:-0.05} },
+  { id:'ninja', name:'Shinobi',  color:'#333355', accent:'#6666aa', scarf:'#ff0044', shape:'fox',   cost:600,  desc:'Shadow ninja, +20% speed, +10% crit', unlockLevel:10, bonus:{speed:0.20, critChance:0.10} },
+  { id:'angel', name:'Seraph',   color:'#ffeedd', accent:'#fff8f0', scarf:'#ffdd00', shape:'star',  cost:800,  desc:'Divine healer, +1HP/3s, +10% XP', unlockLevel:15, bonus:{regen:true, xpBonus:0.10} },
+  { id:'robot', name:'MECH-7',   color:'#778899', accent:'#aabbcc', scarf:'#00ff88', shape:'round', cost:1200, desc:'War machine, +30% dmg, -15% speed', unlockLevel:20, bonus:{dmg:0.30, speed:-0.15} },
+  { id:'dragon',name:'Drakon',   color:'#cc4400', accent:'#ff8844', scarf:'#ffcc00', shape:'flame', cost:2000, desc:'Dragon form, +25% dmg, +15% SP, fire trail', unlockLevel:25, bonus:{dmg:0.25, spCharge:0.15} },
+  { id:'cosmic',name:'Nebula',   color:'#6600cc', accent:'#cc88ff', scarf:'#00ffcc', shape:'ghost', cost:3000, desc:'Cosmic entity, +20% all stats', unlockLevel:30, bonus:{speed:0.20, dmg:0.20, spCharge:0.20} },
   { id:'rainbow',name:'Prisma',  color:'#ff44ff', accent:'#ffffff', scarf:'#44ffff', shape:'round', cost:0, desc:'Rainbow entity, +15% all stats', unlockLevel:0, bonus:{speed:0.15,dmg:0.15,spCharge:0.15}, hidden:true },
   { id:'void',  name:'Oblivion', color:'#220044', accent:'#aa00ff', scarf:'#ff00ff', shape:'ghost', cost:0, desc:'Born from the void, +30% SP, -20% HP', unlockLevel:0, bonus:{spCharge:0.30,hpMul:-0.20}, hidden:true },
 ];
@@ -1217,7 +1263,7 @@ function showRanking() {
 
 function goHome() {
   // Hide all screens, show title
-  ['gameover-screen','victory-screen','stage-clear','pause-screen','ranking-screen','shop-screen','daily-screen','chest-screen','upgrade-screen','levelup-screen','stage-intro','boss-hp-container'].forEach(id => {
+  ['gameover-screen','victory-screen','stage-clear','pause-screen','ranking-screen','shop-screen','daily-screen','chest-screen','upgrade-screen','levelup-screen','stage-intro','boss-hp-container','stage-select'].forEach(id => {
     document.getElementById(id).classList.remove('active');
   });
   document.getElementById('title-screen').classList.remove('hidden');
@@ -1232,21 +1278,241 @@ function updateTitleScreen() {
   document.getElementById('title-profile').textContent = `Lv.${prof.userLevel} | ${prof.coins} coins`;
   const best = Storage.getBest();
   document.getElementById('title-best').textContent = best ? `Best: ${best.score} pts` : '';
-  // Mode buttons
+  // Mode buttons - always show endless & hard
   const modeEl = document.getElementById('mode-buttons');
   modeEl.innerHTML = '';
-  if (Storage.hasFlag('endless')) {
+  {
     const b = document.createElement('button');
     b.className='title-sub-btn'; b.textContent='\u{267E}\uFE0F ENDLESS';
     b.onclick = () => { game=new Game(); game.start('endless'); };
     modeEl.appendChild(b);
   }
-  if (Storage.hasFlag('hard')) {
+  {
     const b = document.createElement('button');
     b.className='title-sub-btn'; b.style.color='#ff4444'; b.style.borderColor='#ff444488'; b.textContent='\u{1F480} HARD';
     b.onclick = () => { game=new Game(); game.start('hard'); };
     modeEl.appendChild(b);
   }
+}
+
+function drawCharPreview(ch) {
+  const cvs = document.createElement('canvas');
+  cvs.width = 100; cvs.height = 100;
+  cvs.className = 'char-preview';
+  const c = cvs.getContext('2d');
+  c.translate(50, 52);
+  const shape = ch.shape || 'round';
+  const t = 0; // static pose
+
+  // Shadow
+  c.fillStyle = 'rgba(0,0,0,0.3)';
+  c.beginPath(); c.ellipse(0, 22, 20, 7, 0, 0, Math.PI*2); c.fill();
+
+  if (shape === 'round') {
+    // Scarf
+    c.fillStyle = ch.scarf;
+    c.beginPath(); c.moveTo(-12,-2); c.quadraticCurveTo(-22,8,-26,18); c.quadraticCurveTo(-24,20,-18,16); c.quadraticCurveTo(-14,6,-10,0); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(12,-2); c.quadraticCurveTo(20,10,24,22); c.quadraticCurveTo(26,24,22,20); c.quadraticCurveTo(16,8,10,0); c.closePath(); c.fill();
+    // Body
+    const R = 18;
+    c.fillStyle = ch.color; c.beginPath(); c.arc(0, 0, R, 0, Math.PI*2); c.fill();
+    // Scarf front
+    c.fillStyle = ch.scarf; c.beginPath(); c.ellipse(0, -R*0.55, R*0.75, 5, 0, 0, Math.PI*2); c.fill();
+    // Ears
+    c.fillStyle = ch.color;
+    c.beginPath(); c.moveTo(-9,-R*0.7); c.quadraticCurveTo(-15,-R*1.5,-5,-R*0.9); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(9,-R*0.7); c.quadraticCurveTo(15,-R*1.5,5,-R*0.9); c.closePath(); c.fill();
+    c.fillStyle = '#ffaacc';
+    c.beginPath(); c.moveTo(-8,-R*0.75); c.quadraticCurveTo(-13,-R*1.35,-5.5,-R*0.9); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(8,-R*0.75); c.quadraticCurveTo(13,-R*1.35,5.5,-R*0.9); c.closePath(); c.fill();
+    // Eyes
+    c.fillStyle = '#fff';
+    c.beginPath(); c.ellipse(-5,-4,5,6,0,0,Math.PI*2); c.ellipse(5,-4,5,6,0,0,Math.PI*2); c.fill();
+    c.fillStyle = '#1144aa';
+    c.beginPath(); c.arc(-5,-4,3.5,0,Math.PI*2); c.arc(5,-4,3.5,0,Math.PI*2); c.fill();
+    c.fillStyle = '#000';
+    c.beginPath(); c.arc(-5,-4,1.8,0,Math.PI*2); c.arc(5,-4,1.8,0,Math.PI*2); c.fill();
+    c.fillStyle = '#fff';
+    c.beginPath(); c.arc(-6,-5.5,1.8,0,Math.PI*2); c.arc(4,-5.5,1.8,0,Math.PI*2); c.fill();
+    // Mouth
+    c.strokeStyle = '#224'; c.lineWidth = 1.2;
+    c.beginPath(); c.arc(0, 3, 3, 0.1, Math.PI-0.1); c.stroke();
+    // Blush
+    c.fillStyle = 'rgba(255,100,150,0.25)';
+    c.beginPath(); c.ellipse(-10,0,4,3,0,0,Math.PI*2); c.ellipse(10,0,4,3,0,0,Math.PI*2); c.fill();
+    // Feet
+    c.fillStyle = ch.color;
+    c.beginPath(); c.ellipse(-6,R*0.85,4,3,0,0,Math.PI*2); c.fill();
+    c.beginPath(); c.ellipse(6,R*0.85,4,3,0,0,Math.PI*2); c.fill();
+
+  } else if (shape === 'fox') {
+    // Tail
+    c.fillStyle = ch.color;
+    c.beginPath(); c.moveTo(-5,5); c.quadraticCurveTo(-20,0,-28,-15); c.quadraticCurveTo(-22,-25,-15,-12); c.quadraticCurveTo(-10,-5,-3,3); c.closePath(); c.fill();
+    c.fillStyle = ch.accent;
+    c.beginPath(); c.moveTo(-18,-12); c.quadraticCurveTo(-22,-20,-15,-10); c.closePath(); c.fill();
+    // Body
+    c.fillStyle = ch.color;
+    c.beginPath(); c.ellipse(0,2,14,12,0,0,Math.PI*2); c.fill();
+    c.fillStyle = ch.accent;
+    c.beginPath(); c.ellipse(1,4,8,7,0,0,Math.PI*2); c.fill();
+    // Head
+    c.fillStyle = ch.color;
+    c.beginPath(); c.ellipse(0,-10,11,10,0,0,Math.PI*2); c.fill();
+    // Ears
+    c.beginPath(); c.moveTo(-7,-14); c.lineTo(-10,-28); c.lineTo(-2,-16); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(7,-14); c.lineTo(10,-28); c.lineTo(2,-16); c.closePath(); c.fill();
+    c.fillStyle = '#ffaacc';
+    c.beginPath(); c.moveTo(-6,-15); c.lineTo(-8,-25); c.lineTo(-3,-16); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(6,-15); c.lineTo(8,-25); c.lineTo(3,-16); c.closePath(); c.fill();
+    // Snout
+    c.fillStyle = ch.accent; c.beginPath(); c.ellipse(0,-6,4,3,0,0,Math.PI*2); c.fill();
+    c.fillStyle = '#333'; c.beginPath(); c.arc(0,-7,1.5,0,Math.PI*2); c.fill();
+    // Eyes
+    c.fillStyle = '#fff';
+    c.beginPath(); c.ellipse(-5,-10,4,5,0,0,Math.PI*2); c.ellipse(5,-10,4,5,0,0,Math.PI*2); c.fill();
+    c.fillStyle = '#22aa44';
+    c.beginPath(); c.arc(-5,-10,3,0,Math.PI*2); c.arc(5,-10,3,0,Math.PI*2); c.fill();
+    c.fillStyle = '#000';
+    c.beginPath(); c.arc(-5,-10,1.5,0,Math.PI*2); c.arc(5,-10,1.5,0,Math.PI*2); c.fill();
+    c.fillStyle = '#fff';
+    c.beginPath(); c.arc(-6,-11.5,1.5,0,Math.PI*2); c.arc(4,-11.5,1.5,0,Math.PI*2); c.fill();
+    // Legs
+    c.fillStyle = ch.color; c.fillRect(-9,10,5,8); c.fillRect(4,10,5,8);
+    c.fillStyle = ch.accent; c.fillRect(-9,16,5,3); c.fillRect(4,16,5,3);
+
+  } else if (shape === 'flame') {
+    // Flame body
+    c.fillStyle = ch.color;
+    c.beginPath();
+    c.moveTo(0,-22); c.quadraticCurveTo(14,-10,16,5); c.quadraticCurveTo(12,16,6,16);
+    c.quadraticCurveTo(3,18,0,16); c.quadraticCurveTo(-3,18,-6,16);
+    c.quadraticCurveTo(-12,16,-16,5); c.quadraticCurveTo(-14,-10,0,-22);
+    c.fill();
+    // Inner flame
+    c.fillStyle = ch.accent;
+    c.beginPath();
+    c.moveTo(0,-16); c.quadraticCurveTo(8,-6,10,4); c.quadraticCurveTo(6,12,0,12);
+    c.quadraticCurveTo(-6,12,-10,4); c.quadraticCurveTo(-8,-6,0,-16);
+    c.fill();
+    // Core
+    c.fillStyle = '#fff8'; c.beginPath(); c.ellipse(0,2,5,6,0,0,Math.PI*2); c.fill();
+    // Eyes
+    c.fillStyle = '#fff';
+    c.beginPath(); c.ellipse(-5,-2,4,5,0,0,Math.PI*2); c.ellipse(5,-2,4,5,0,0,Math.PI*2); c.fill();
+    c.fillStyle = '#ff4400';
+    c.beginPath(); c.arc(-5,-2,3,0,Math.PI*2); c.arc(5,-2,3,0,Math.PI*2); c.fill();
+    c.fillStyle = '#000';
+    c.beginPath(); c.arc(-5,-2,1.5,0,Math.PI*2); c.arc(5,-2,1.5,0,Math.PI*2); c.fill();
+    c.fillStyle = '#fff';
+    c.beginPath(); c.arc(-6,-3.5,1.5,0,Math.PI*2); c.arc(4,-3.5,1.5,0,Math.PI*2); c.fill();
+    // Mouth
+    c.strokeStyle = '#ff880088'; c.lineWidth = 1.5;
+    c.beginPath(); c.arc(0,7,3,0.3,Math.PI-0.3); c.stroke();
+
+  } else if (shape === 'ghost') {
+    // Flowing bottom
+    c.fillStyle = ch.color + '88';
+    c.beginPath(); c.moveTo(-14,5);
+    for(let i=0;i<=8;i++) c.lineTo(-14+(28/8)*i, 18+Math.sin(i*1.5)*5);
+    c.lineTo(14,5); c.closePath(); c.fill();
+    // Body
+    c.fillStyle = ch.color + 'cc';
+    c.beginPath(); c.ellipse(0,-2,14,16,0,0,Math.PI*2); c.fill();
+    // Inner glow
+    c.fillStyle = ch.accent + '44';
+    c.beginPath(); c.ellipse(-2,-5,8,10,0,0,Math.PI*2); c.fill();
+    // Horn
+    c.fillStyle = ch.scarf;
+    c.beginPath(); c.moveTo(-2,-16); c.lineTo(0,-24); c.lineTo(2,-16); c.closePath(); c.fill();
+    // Eyes
+    c.fillStyle = '#fff';
+    c.beginPath(); c.ellipse(-5,-4,4,5,0,0,Math.PI*2); c.ellipse(5,-4,4,5,0,0,Math.PI*2); c.fill();
+    c.fillStyle = ch.color;
+    c.beginPath(); c.arc(-5,-4,3,0,Math.PI*2); c.arc(5,-4,3,0,Math.PI*2); c.fill();
+    c.fillStyle = '#000';
+    c.beginPath(); c.arc(-5,-4,1.5,0,Math.PI*2); c.arc(5,-4,1.5,0,Math.PI*2); c.fill();
+    c.fillStyle = '#fff';
+    c.beginPath(); c.arc(-6,-5.5,1.5,0,Math.PI*2); c.arc(4,-5.5,1.5,0,Math.PI*2); c.fill();
+    // Mouth
+    c.fillStyle = '#0004'; c.beginPath(); c.ellipse(0,5,3,4,0,0,Math.PI*2); c.fill();
+    // Arms
+    c.strokeStyle = ch.color + '66'; c.lineWidth = 2;
+    c.beginPath(); c.moveTo(-12,0); c.quadraticCurveTo(-20,-5,-18,5); c.stroke();
+    c.beginPath(); c.moveTo(12,0); c.quadraticCurveTo(20,-5,18,5); c.stroke();
+
+  } else if (shape === 'star') {
+    // Outer glow
+    c.fillStyle = ch.color + '22'; c.beginPath(); c.arc(0,0,28,0,Math.PI*2); c.fill();
+    // Star
+    c.fillStyle = ch.color; c.beginPath();
+    for(let i=0;i<10;i++){const a=(i/10)*Math.PI*2;const r2=i%2===0?18:10;c.lineTo(Math.cos(a)*r2,Math.sin(a)*r2);}
+    c.closePath(); c.fill();
+    // Inner star
+    c.fillStyle = ch.accent; c.beginPath();
+    for(let i=0;i<10;i++){const a=(i/10)*Math.PI*2;const r2=i%2===0?12:7;c.lineTo(Math.cos(a)*r2,Math.sin(a)*r2);}
+    c.closePath(); c.fill();
+    // Face
+    c.fillStyle = '#fff4'; c.beginPath(); c.arc(0,-1,8,0,Math.PI*2); c.fill();
+    // Eyes
+    c.fillStyle = '#fff';
+    c.beginPath(); c.ellipse(-4,-3,3.5,4.5,0,0,Math.PI*2); c.ellipse(4,-3,3.5,4.5,0,0,Math.PI*2); c.fill();
+    c.fillStyle = '#ddaa00';
+    c.beginPath(); c.arc(-4,-3,2.5,0,Math.PI*2); c.arc(4,-3,2.5,0,Math.PI*2); c.fill();
+    c.fillStyle = '#000';
+    c.beginPath(); c.arc(-4,-3,1.3,0,Math.PI*2); c.arc(4,-3,1.3,0,Math.PI*2); c.fill();
+    c.fillStyle = '#fff';
+    c.beginPath(); c.arc(-5,-4.5,1.3,0,Math.PI*2); c.arc(3,-4.5,1.3,0,Math.PI*2); c.fill();
+    // Crown
+    c.fillStyle = ch.scarf;
+    c.beginPath(); c.moveTo(-5,-10); c.lineTo(-3,-18); c.lineTo(-1,-12); c.lineTo(1,-19); c.lineTo(3,-12); c.lineTo(5,-10); c.closePath(); c.fill();
+    // Smile
+    c.strokeStyle = '#aa880088'; c.lineWidth = 1;
+    c.beginPath(); c.arc(0,3,2.5,0.2,Math.PI-0.2); c.stroke();
+
+  } else if (shape === 'reaper') {
+    // Cloak
+    c.fillStyle = ch.color;
+    c.beginPath(); c.moveTo(-14,-8);
+    c.quadraticCurveTo(-16,5,-12,18);
+    for(let i=0;i<6;i++) c.lineTo(-12+(24/5)*i, 18+Math.sin(i*2)*4+(i%2)*3);
+    c.quadraticCurveTo(16,5,14,-8);
+    c.quadraticCurveTo(8,-20,0,-18);
+    c.quadraticCurveTo(-8,-20,-14,-8);
+    c.closePath(); c.fill();
+    // Hood
+    c.fillStyle = '#333';
+    c.beginPath(); c.ellipse(0,-10,12,10,0,Math.PI,Math.PI*2); c.fill();
+    c.fillStyle = ch.color;
+    c.beginPath(); c.ellipse(0,-8,10,8,0,Math.PI,Math.PI*2); c.fill();
+    // Face void
+    c.fillStyle = '#000'; c.beginPath(); c.ellipse(0,-4,7,6,0,0,Math.PI*2); c.fill();
+    // Eyes
+    c.fillStyle = ch.scarf;
+    c.beginPath(); c.ellipse(-4,-5,2.5,1.5,-0.1,0,Math.PI*2); c.fill();
+    c.beginPath(); c.ellipse(4,-5,2.5,1.5,0.1,0,Math.PI*2); c.fill();
+    c.fillStyle = '#fff';
+    c.beginPath(); c.arc(-4.5,-5.5,0.7,0,Math.PI*2); c.arc(3.5,-5.5,0.7,0,Math.PI*2); c.fill();
+    // Scythe
+    c.save(); c.translate(12,0); c.rotate(0.2);
+    c.strokeStyle = '#666'; c.lineWidth = 2;
+    c.beginPath(); c.moveTo(0,15); c.lineTo(0,-15); c.stroke();
+    c.fillStyle = '#aaa';
+    c.beginPath(); c.moveTo(0,-15); c.quadraticCurveTo(12,-18,14,-10); c.quadraticCurveTo(10,-8,0,-10); c.closePath(); c.fill();
+    c.restore();
+  }
+
+  // Sparkles
+  for (let i = 0; i < 4; i++) {
+    const sa = i*Math.PI*0.5, sr = 22+Math.sin(i)*5;
+    const sx = Math.cos(sa)*sr, sy = Math.sin(sa)*sr*0.6-5;
+    c.fillStyle = `rgba(255,255,200,0.4)`;
+    c.save(); c.translate(sx,sy); c.rotate(i*0.7);
+    c.beginPath();
+    for(let j=0;j<4;j++){const a2=(j/4)*Math.PI*2;c.moveTo(0,0);c.lineTo(Math.cos(a2)*2,Math.sin(a2)*2);c.lineTo(Math.cos(a2+0.3)*0.6,Math.sin(a2+0.3)*0.6);}
+    c.fill(); c.restore();
+  }
+  return cvs;
 }
 
 function showShop() {
@@ -1262,14 +1528,31 @@ function showShop() {
     const canBuy = !owned && levelOk && prof.coins >= ch.cost;
     const card = document.createElement('div');
     card.className = 'char-card' + (selected?' selected':'') + (!owned&&!canBuy?' locked':'');
-    card.innerHTML = `
-      <div class="char-preview" style="background:${ch.color};border-color:${ch.accent}"></div>
-      <div class="char-name">${ch.name}</div>
-      <div class="char-desc">${ch.desc}</div>
-      ${owned ? (selected?'<div class="char-cost owned">SELECTED</div>':'<div class="char-cost owned">OWNED</div>') :
-        (!levelOk ? `<div class="char-lock-reason">Unlock at User Lv.${ch.unlockLevel}</div><div class="char-cost">${ch.cost} coins</div>` :
-        `<div class="char-cost">${ch.cost} coins</div>`)}
-    `;
+    // Draw character preview canvas
+    const previewCanvas = drawCharPreview(ch);
+    card.appendChild(previewCanvas);
+    const nameEl = document.createElement('div');
+    nameEl.className = 'char-name'; nameEl.textContent = ch.name;
+    card.appendChild(nameEl);
+    const descEl = document.createElement('div');
+    descEl.className = 'char-desc'; descEl.textContent = ch.desc;
+    card.appendChild(descEl);
+    const costEl = document.createElement('div');
+    if (owned) {
+      costEl.className = 'char-cost owned';
+      costEl.textContent = selected ? 'SELECTED' : 'OWNED';
+    } else if (!levelOk) {
+      const lockEl = document.createElement('div');
+      lockEl.className = 'char-lock-reason';
+      lockEl.textContent = `Unlock at User Lv.${ch.unlockLevel}`;
+      card.appendChild(lockEl);
+      costEl.className = 'char-cost';
+      costEl.textContent = `${ch.cost} coins`;
+    } else {
+      costEl.className = 'char-cost';
+      costEl.textContent = `${ch.cost} coins`;
+    }
+    card.appendChild(costEl);
     card.onclick = () => {
       if (owned && !selected) {
         Storage.selectChar(ch.id);
@@ -1310,6 +1593,46 @@ function showUpgradeShop() {
     grid.appendChild(card);
   }
   document.getElementById('upgrade-screen').classList.add('active');
+}
+
+function showStageSelect() {
+  const prof = Storage.getProfile();
+  const maxStage = prof.maxStageClear || 0; // highest cleared stage index
+  const container = document.getElementById('stage-select-worlds');
+  container.innerHTML = '';
+  const worldNames = ['WORLD 1 - NATURE','WORLD 2 - ELEMENTS','WORLD 3 - VOID'];
+  const worldColors = ['#44aa44','#dd8822','#aa44ff'];
+  for (let w = 1; w <= 3; w++) {
+    const sec = document.createElement('div');
+    sec.className = 'world-section';
+    const wTitle = document.createElement('div');
+    wTitle.className = 'world-title';
+    wTitle.style.color = worldColors[w-1];
+    wTitle.textContent = worldNames[w-1];
+    sec.appendChild(wTitle);
+    const grid = document.createElement('div');
+    grid.className = 'stage-grid';
+    const worldStages = STAGES.filter(s => s.world === w);
+    for (const stg of worldStages) {
+      const idx = STAGES.indexOf(stg);
+      const cleared = idx < maxStage;
+      const available = idx <= maxStage;
+      const card = document.createElement('div');
+      card.className = 'stage-card' + (cleared ? ' cleared' : '') + (!available ? ' locked' : '') + (idx === maxStage ? ' current' : '');
+      card.innerHTML = `<div class="stage-num" style="color:${stg.accent}">${stg.world}-${stg.stage}</div><div class="stage-label">${stg.name}</div>`;
+      if (available) {
+        card.onclick = () => {
+          document.getElementById('stage-select').classList.remove('active');
+          game = new Game();
+          game.startFromStage(idx);
+        };
+      }
+      grid.appendChild(card);
+    }
+    sec.appendChild(grid);
+    container.appendChild(sec);
+  }
+  document.getElementById('stage-select').classList.add('active');
 }
 
 function showAchievementPopup(ach) {
@@ -1367,7 +1690,7 @@ function getShareText(type) {
     const count = Math.round(n/max*10);
     return filled.repeat(count) + empty.repeat(10-count);
   };
-  const stageBar = bar(game.currentStage+1, 5, '🟪', '⬜');
+  const stageBar = bar(game.currentStage+1, STAGES.length, '🟪', '⬜');
 
   if (type === 'gameover') {
     return `☠️ INFINITY SURVIVORS ☠️
@@ -1396,7 +1719,7 @@ Score: ${calcScore(game)} pts 👑
 Play now 👇
 #InfinitySurvivors`;
   } else {
-    return `✨ STAGE ${game.stageDef.id} CLEAR! ✨
+    return `✨ ${game.stageDef.world}-${game.stageDef.stage} CLEAR! ✨
 
 🏰 ${game.stageDef.name}
 💀 ${game.stageKills} kills | ⭐ Lv.${p.level}
@@ -1427,50 +1750,133 @@ function copyResult(type) {
 }
 
 // ---- Constants ----
-const WORLD_SIZE = 3000;
+const WORLD_SIZE = 1000;
 const TILE = 80;
 
 // ---- Stage Definitions ----
 const STAGES = [
+  // === WORLD 1: Nature/Forest ===
   {
-    id: 1, name: 'DARK FOREST', subtitle: 'The shadow awakens',
+    id: 1, world: 1, stage: 1, name: 'DARK FOREST', subtitle: 'The shadow awakens',
     bg: '#0a140a', grid: '#122212', tile: '#0d1a0d', accent: '#22aa44',
     envColor: '#44cc4488', envType: 'leaf',
-    killGoal: 60, timeGoal: 0,
-    boss: { name: 'FOREST GUARDIAN', color: '#22cc44', accent: '#88ff88', hp: 300, size: 45, speed: 45, dmg: 18 },
-    enemyScale: 1.0, spawnMul: 1.3
+    killGoal: 40, timeGoal: 0,
+    boss: { name: 'FOREST GUARDIAN', color: '#22cc44', accent: '#88ff88', hp: 800, size: 45, speed: 50, dmg: 22 },
+    enemyScale: 1.0, spawnMul: 1.2
   },
   {
-    id: 2, name: 'SCORCHING DESERT', subtitle: 'Heat shimmers in the wasteland',
-    bg: '#1a1408', grid: '#2a2010', tile: '#1e1a0a', accent: '#dd8822',
-    envColor: '#ddaa4444', envType: 'sand',
-    killGoal: 100, timeGoal: 60,
-    boss: { name: 'SAND WYRM', color: '#ddaa22', accent: '#ffdd66', hp: 600, size: 50, speed: 55, dmg: 22 },
+    id: 2, world: 1, stage: 2, name: 'MISTY SWAMP', subtitle: 'Fog conceals hungry things',
+    bg: '#0a1208', grid: '#142010', tile: '#0e180a', accent: '#44aa66',
+    envColor: '#44cc6688', envType: 'leaf',
+    killGoal: 55, timeGoal: 0,
+    boss: { name: 'SWAMP HORROR', color: '#44aa66', accent: '#88ffaa', hp: 1000, size: 46, speed: 48, dmg: 26 },
+    enemyScale: 1.1, spawnMul: 1.3
+  },
+  {
+    id: 3, world: 1, stage: 3, name: 'ANCIENT RUINS', subtitle: 'Echoes of a fallen kingdom',
+    bg: '#10100a', grid: '#1a1a12', tile: '#14140e', accent: '#aa9944',
+    envColor: '#aa994488', envType: 'leaf',
+    killGoal: 70, timeGoal: 0,
+    boss: { name: 'RUIN GOLEM', color: '#aa9944', accent: '#ddcc88', hp: 1300, size: 48, speed: 44, dmg: 30 },
+    enemyScale: 1.2, spawnMul: 1.4
+  },
+  {
+    id: 4, world: 1, stage: 4, name: 'CURSED GRAVEYARD', subtitle: 'The dead do not rest',
+    bg: '#0a0a10', grid: '#141420', tile: '#0e0e18', accent: '#8866aa',
+    envColor: '#8866aa44', envType: 'leaf',
+    killGoal: 85, timeGoal: 60,
+    boss: { name: 'LICH KING', color: '#8866aa', accent: '#ccaaff', hp: 1600, size: 50, speed: 52, dmg: 35 },
     enemyScale: 1.3, spawnMul: 1.5
   },
   {
-    id: 3, name: 'FROZEN TUNDRA', subtitle: 'Silence before the storm',
+    id: 5, world: 1, stage: 5, name: 'SACRED GROVE', subtitle: 'Nature fights back',
+    bg: '#081408', grid: '#103010', tile: '#0c200c', accent: '#44dd44',
+    envColor: '#44dd4488', envType: 'leaf',
+    killGoal: 100, timeGoal: 0,
+    boss: { name: 'ELDER TREANT', color: '#44dd44', accent: '#88ff88', hp: 2000, size: 55, speed: 42, dmg: 40 },
+    enemyScale: 1.4, spawnMul: 1.6
+  },
+  // === WORLD 2: Fire/Ice/Elements ===
+  {
+    id: 6, world: 2, stage: 1, name: 'SCORCHING DESERT', subtitle: 'Heat shimmers in the wasteland',
+    bg: '#1a1408', grid: '#2a2010', tile: '#1e1a0a', accent: '#dd8822',
+    envColor: '#ddaa4444', envType: 'sand',
+    killGoal: 110, timeGoal: 60,
+    boss: { name: 'SAND WYRM', color: '#ddaa22', accent: '#ffdd66', hp: 2500, size: 52, speed: 58, dmg: 45 },
+    enemyScale: 1.6, spawnMul: 1.7
+  },
+  {
+    id: 7, world: 2, stage: 2, name: 'FROZEN TUNDRA', subtitle: 'Silence before the storm',
     bg: '#08101a', grid: '#102030', tile: '#0a1520', accent: '#44aadd',
     envColor: '#aaddff66', envType: 'snow',
     killGoal: 120, timeGoal: 0,
-    boss: { name: 'FROST TITAN', color: '#44aadd', accent: '#aaeeff', hp: 600, size: 55, speed: 40, dmg: 28 },
-    enemyScale: 1.4, spawnMul: 1.6
+    boss: { name: 'FROST TITAN', color: '#44aadd', accent: '#aaeeff', hp: 3000, size: 58, speed: 48, dmg: 50 },
+    enemyScale: 1.8, spawnMul: 1.8
   },
   {
-    id: 4, name: 'INFERNO VOLCANO', subtitle: 'The earth bleeds fire',
+    id: 8, world: 2, stage: 3, name: 'THUNDER PEAKS', subtitle: 'Lightning splits the sky',
+    bg: '#0e0e14', grid: '#1a1a24', tile: '#12121c', accent: '#dddd44',
+    envColor: '#dddd4444', envType: 'ember',
+    killGoal: 135, timeGoal: 75,
+    boss: { name: 'STORM LORD', color: '#dddd44', accent: '#ffffaa', hp: 3800, size: 55, speed: 62, dmg: 55 },
+    enemyScale: 2.0, spawnMul: 2.0
+  },
+  {
+    id: 9, world: 2, stage: 4, name: 'INFERNO VOLCANO', subtitle: 'The earth bleeds fire',
     bg: '#1a0808', grid: '#2a1010', tile: '#1e0a0a', accent: '#ff4422',
     envColor: '#ff440044', envType: 'ember',
-    killGoal: 140, timeGoal: 75,
-    boss: { name: 'INFERNO LORD', color: '#ff4422', accent: '#ffaa44', hp: 800, size: 55, speed: 50, dmg: 35 },
-    enemyScale: 1.8, spawnMul: 2.0
+    killGoal: 150, timeGoal: 80,
+    boss: { name: 'INFERNO LORD', color: '#ff4422', accent: '#ffaa44', hp: 4500, size: 58, speed: 55, dmg: 65 },
+    enemyScale: 2.3, spawnMul: 2.2
   },
   {
-    id: 5, name: 'THE VOID', subtitle: 'Beyond the edge of reality',
+    id: 10, world: 2, stage: 5, name: 'CRYSTAL CAVERNS', subtitle: 'Gems pulse with ancient power',
+    bg: '#0a0a14', grid: '#14142a', tile: '#0e0e20', accent: '#44dddd',
+    envColor: '#44dddd44', envType: 'snow',
+    killGoal: 165, timeGoal: 0,
+    boss: { name: 'CRYSTAL DRAGON', color: '#44dddd', accent: '#88ffff', hp: 5500, size: 60, speed: 58, dmg: 75 },
+    enemyScale: 2.6, spawnMul: 2.4
+  },
+  // === WORLD 3: Void/Cosmic ===
+  {
+    id: 11, world: 3, stage: 1, name: 'SHADOW REALM', subtitle: 'Darkness has a mind of its own',
+    bg: '#080808', grid: '#141414', tile: '#0c0c0c', accent: '#aa4488',
+    envColor: '#aa448844', envType: 'star',
+    killGoal: 180, timeGoal: 90,
+    boss: { name: 'SHADOW KING', color: '#aa4488', accent: '#ff88cc', hp: 6500, size: 58, speed: 60, dmg: 85 },
+    enemyScale: 3.0, spawnMul: 2.5
+  },
+  {
+    id: 12, world: 3, stage: 2, name: 'ASTRAL SEA', subtitle: 'Stars drift in endless night',
+    bg: '#060610', grid: '#0e0e20', tile: '#0a0a18', accent: '#6688ff',
+    envColor: '#6688ff44', envType: 'star',
+    killGoal: 195, timeGoal: 0,
+    boss: { name: 'ASTRAL SERPENT', color: '#6688ff', accent: '#aabbff', hp: 8000, size: 60, speed: 65, dmg: 95 },
+    enemyScale: 3.4, spawnMul: 2.7
+  },
+  {
+    id: 13, world: 3, stage: 3, name: 'BLOOD MOON', subtitle: 'The crimson sky hungers',
+    bg: '#140606', grid: '#200e0e', tile: '#1a0a0a', accent: '#dd2222',
+    envColor: '#dd222244', envType: 'ember',
+    killGoal: 215, timeGoal: 100,
+    boss: { name: 'BLOOD AVATAR', color: '#dd2222', accent: '#ff6666', hp: 10000, size: 62, speed: 68, dmg: 110 },
+    enemyScale: 3.8, spawnMul: 2.9
+  },
+  {
+    id: 14, world: 3, stage: 4, name: 'CHAOS RIFT', subtitle: 'Reality tears apart',
+    bg: '#0c0408', grid: '#1a0a14', tile: '#140810', accent: '#ff44aa',
+    envColor: '#ff44aa44', envType: 'star',
+    killGoal: 235, timeGoal: 110,
+    boss: { name: 'CHAOS INCARNATE', color: '#ff44aa', accent: '#ffaadd', hp: 13000, size: 65, speed: 72, dmg: 130 },
+    enemyScale: 4.4, spawnMul: 3.2
+  },
+  {
+    id: 15, world: 3, stage: 5, name: 'THE VOID', subtitle: 'Beyond the edge of reality',
     bg: '#0a0510', grid: '#140a20', tile: '#0e0818', accent: '#aa44ff',
     envColor: '#aa44ff44', envType: 'star',
-    killGoal: 200, timeGoal: 0,
-    boss: { name: 'VOID EMPEROR', color: '#aa44ff', accent: '#ddaaff', hp: 2000, size: 60, speed: 60, dmg: 45 },
-    enemyScale: 3.0, spawnMul: 2.5
+    killGoal: 250, timeGoal: 0,
+    boss: { name: 'VOID EMPEROR', color: '#aa44ff', accent: '#ddaaff', hp: 18000, size: 68, speed: 70, dmg: 150 },
+    enemyScale: 5.0, spawnMul: 3.5
   }
 ];
 
@@ -1478,10 +1884,16 @@ const STAGES = [
 const WEAPON_DEFS = {
   magicBullet: { name:'Magic Bullet', icon:'\u{1F52E}', color:'#aa66ff', desc:'Homing bullets at nearest enemy', baseCooldown:600, baseDamage:15, levelDesc:lv=>`Lv.${lv}: ${lv} bullets, ${15+lv*5} dmg` },
   fireCircle: { name:'Fire Circle', icon:'\u{1F525}', color:'#ff6600', desc:'Orbiting flames around you', baseCooldown:0, baseDamage:10, levelDesc:lv=>`Lv.${lv}: ${2+lv} flames, ${10+lv*3} dmg` },
-  lightning:   { name:'Lightning', icon:'\u26A1', color:'#ffff00', desc:'Strikes random nearby enemies', baseCooldown:900, baseDamage:30, levelDesc:lv=>`Lv.${lv}: ${lv} strikes, ${30+lv*10} dmg` },
+  lightning:   { name:'Lightning', icon:'\u26A1', color:'#ffff00', desc:'Chain lightning shocks nearby enemies', baseCooldown:900, baseDamage:30, levelDesc:lv=>`Lv.${lv}: ${lv} strikes, ${30+lv*12} dmg, chain ${1+Math.floor(lv*0.5)}` },
   shuriken:    { name:'Shuriken', icon:'\u{1F4A0}', color:'#88ccff', desc:'Fast piercing projectiles', baseCooldown:450, baseDamage:12, levelDesc:lv=>`Lv.${lv}: ${lv} shurikens, pierce ${lv}` },
   frostNova:   { name:'Frost Nova', icon:'\u2744\uFE0F', color:'#66ddff', desc:'Freezing explosion around you', baseCooldown:2000, baseDamage:20, levelDesc:lv=>`Lv.${lv}: range ${80+lv*20}, slow ${1+lv*0.5}s` },
-  meteor:      { name:'Meteor', icon:'\u2604\uFE0F', color:'#ff4400', desc:'Meteors fall on enemy positions', baseCooldown:1500, baseDamage:50, levelDesc:lv=>`Lv.${lv}: ${lv} meteors, ${50+lv*15} dmg` }
+  meteor:      { name:'Meteor', icon:'\u2604\uFE0F', color:'#ff4400', desc:'Meteors fall on enemy positions', baseCooldown:1500, baseDamage:50, levelDesc:lv=>`Lv.${lv}: ${lv} meteors, ${50+lv*15} dmg` },
+  holyLance:   { name:'Holy Lance', icon:'\u{1F531}', color:'#ffdd44', desc:'Piercing lance of light', baseCooldown:700, baseDamage:35, levelDesc:lv=>`Lv.${lv}: ${lv} lances, ${35+lv*10} dmg`, worldUnlock:2 },
+  poisonCloud: { name:'Poison Cloud', icon:'\u2601\uFE0F', color:'#88cc44', desc:'Toxic gas that damages over time', baseCooldown:2500, baseDamage:8, levelDesc:lv=>`Lv.${lv}: range ${100+lv*25}, ${8+lv*3} dps`, worldUnlock:2 },
+  voidOrb:     { name:'Void Orb', icon:'\u{1F311}', color:'#8800aa', desc:'Slow orbs that pull enemies in', baseCooldown:3000, baseDamage:40, levelDesc:lv=>`Lv.${lv}: ${1+Math.floor(lv/2)} orbs, ${40+lv*12} dmg`, worldUnlock:3 },
+  chainSaw:    { name:'Chain Blade', icon:'\u2694\uFE0F', color:'#dd6644', desc:'Rapid melee slashes around you', baseCooldown:400, baseDamage:18, levelDesc:lv=>`Lv.${lv}: range ${50+lv*15}, ${18+lv*6} dmg`, worldUnlock:3 },
+  ricochet:    { name:'Ricochet Shot', icon:'\u{1F48E}', color:'#44ffaa', desc:'Bullets bounce off walls', baseCooldown:550, baseDamage:20, levelDesc:lv=>`Lv.${lv}: ${lv+1} shots, ${20+lv*7} dmg, ${3+lv} bounces`, worldUnlock:1 },
+  plasmaWall:  { name:'Plasma Wall', icon:'\u{1F6E1}\uFE0F', color:'#ff88ff', desc:'Plasma beams reflect off walls', baseCooldown:1200, baseDamage:45, levelDesc:lv=>`Lv.${lv}: ${Math.ceil(lv/2)} beams, ${45+lv*15} dmg, ${4+lv} bounces`, worldUnlock:2 }
 };
 const PASSIVE_DEFS = {
   speed:    { name:'Speed Boost', icon:'\u{1F45F}', color:'#44ff44', desc:'+15% movement speed', maxLv:5 },
@@ -1498,14 +1910,24 @@ const WEAPON_EVOLUTIONS = {
   shuriken:    { name:'Blade Storm',  icon:'\u{1F4AB}', color:'#aaddff', desc:'Infinite pierce razor storm', dmgMul:2, pierceMul:99 },
   frostNova:   { name:'Absolute Zero',icon:'\u{1F4A0}', color:'#88ffff', desc:'Freezes entire screen for 3s', dmgMul:3, rangeMul:5 },
   meteor:      { name:'Apocalypse',   icon:'\u{1F30B}', color:'#ff6600', desc:'Rains 8 massive meteors', dmgMul:2.5, countMul:3 },
+  holyLance:   { name:'Divine Judgment', icon:'\u26A1', color:'#ffff88', desc:'Rain of divine spears', dmgMul:2.5, countMul:3 },
+  poisonCloud: { name:'Plague Storm', icon:'\u{1F480}', color:'#aaff44', desc:'Massive toxic hurricane', dmgMul:3, rangeMul:3 },
+  voidOrb:     { name:'Black Hole', icon:'\u{1F573}\uFE0F', color:'#440088', desc:'Singularity devours all', dmgMul:3, pullMul:5 },
+  chainSaw:    { name:'Berserker Rage', icon:'\u{1F525}', color:'#ff4400', desc:'Infinite slashing frenzy', dmgMul:2.5, rangeMul:2 },
+  ricochet:    { name:'Diamond Storm', icon:'\u{1F4A0}', color:'#88ffcc', desc:'Infinite bouncing diamond barrage', dmgMul:2.5, bounceMul:99 },
+  plasmaWall:  { name:'Mirror Dimension', icon:'\u{1F52E}', color:'#ff44ff', desc:'Reality-bending plasma everywhere', dmgMul:3, bounceMul:99 },
 };
 
 // ---- Enemy Types ----
 const ENEMY_TYPES = {
-  slime:  { color:'#44cc44', speed:60, hp:18, size:14, xp:2, dmg:7 },
-  bat:    { color:'#aa44ff', speed:110, hp:12, size:12, xp:2, dmg:10 },
-  golem:  { color:'#888888', speed:38, hp:100, size:20, xp:5, dmg:18 },
-  wraith: { color:'#ff4444', speed:100, hp:70, size:16, xp:8, dmg:15 }
+  slime:    { color:'#44cc44', speed:70, hp:35, size:14, xp:2, dmg:12 },
+  bat:      { color:'#aa44ff', speed:120, hp:25, size:12, xp:2, dmg:16 },
+  golem:    { color:'#888888', speed:42, hp:180, size:20, xp:5, dmg:30 },
+  wraith:   { color:'#ff4444', speed:110, hp:120, size:16, xp:8, dmg:24 },
+  scorpion: { color:'#cc8844', speed:85, hp:65, size:15, xp:4, dmg:15 },
+  dragon:   { color:'#ff2200', speed:75, hp:260, size:22, xp:12, dmg:32 },
+  phantom:  { color:'#aa88ff', speed:140, hp:55, size:13, xp:6, dmg:22 },
+  demon:    { color:'#880000', speed:95, hp:400, size:24, xp:20, dmg:45 }
 };
 
 // ---- GAME ----
@@ -1546,7 +1968,7 @@ class Game {
     this.player = {
       x: WORLD_SIZE/2, y: WORLD_SIZE/2,
       hp: 100, maxHp: 100, speed: 200,
-      xp: 0, level: 1, xpToNext: 5,
+      xp: 0, level: 1, xpToNext: 10,
       weapons: {}, passives: { speed:0, maxHp:0, magnet:0, cooldown:0 },
       invincible: 0, pickupRange: 80, facing: 0, bobTimer: 0,
       sp: 0, spMax: 100, ultReady: false
@@ -1602,7 +2024,7 @@ class Game {
   showStageIntro() {
     this.state = 'stageIntro';
     const s = this.stageDef;
-    document.getElementById('stage-intro-number').textContent = `STAGE ${s.id}`;
+    document.getElementById('stage-intro-number').textContent = `${s.world}-${s.stage}`;
     document.getElementById('stage-intro-name').textContent = s.name;
     document.getElementById('stage-intro-name').style.color = s.accent;
     const goals = [];
@@ -1647,6 +2069,9 @@ class Game {
     if (ch.bonus) {
       if (ch.bonus.speed) this.player.speed *= (1 + ch.bonus.speed);
       if (ch.bonus.hpMul) { this.player.maxHp = Math.floor(this.player.maxHp * (1 + ch.bonus.hpMul)); this.player.hp = this.player.maxHp; }
+      if (ch.bonus.regen) this.regenTimer = 0;
+      if (ch.bonus.critChance) this.critChance = ch.bonus.critChance;
+      if (ch.bonus.freezeDur) this.freezeDurBonus = ch.bonus.freezeDur;
     }
     // Apply permanent upgrades
     const pAtk = PermUpgrades.getLevel('pAtk');
@@ -1655,9 +2080,42 @@ class Game {
     this.permDmgBonus = pAtk * 0.05;
     this.permSpCharge = PermUpgrades.getLevel('pSp') * 0.08;
     this.permXpBonus = PermUpgrades.getLevel('pXp') * 0.10;
+    if (ch.bonus && ch.bonus.xpBonus) this.permXpBonus += ch.bonus.xpBonus;
     if (pHp) { this.player.maxHp += pHp * 10; this.player.hp = this.player.maxHp; }
     if (pSpd) this.player.speed *= (1 + pSpd * 0.03);
     // No-damage timer for achievement
+    this.noDmgTimer = 0;
+    document.getElementById('title-screen').classList.add('hidden');
+    document.getElementById('gameover-screen').classList.remove('active');
+    document.getElementById('victory-screen').classList.remove('active');
+    document.getElementById('shop-screen').classList.remove('active');
+    audio.init();
+  }
+
+  startFromStage(stageIdx) {
+    this.state = 'playing';
+    this.init();
+    this.currentStage = stageIdx;
+    this.startStage(stageIdx);
+    // Apply character bonuses
+    const ch = getSelectedChar();
+    this.charDef = ch;
+    if (ch.bonus) {
+      if (ch.bonus.speed) this.player.speed *= (1 + ch.bonus.speed);
+      if (ch.bonus.hpMul) { this.player.maxHp = Math.floor(this.player.maxHp * (1 + ch.bonus.hpMul)); this.player.hp = this.player.maxHp; }
+      if (ch.bonus.regen) this.regenTimer = 0;
+      if (ch.bonus.critChance) this.critChance = ch.bonus.critChance;
+      if (ch.bonus.freezeDur) this.freezeDurBonus = ch.bonus.freezeDur;
+    }
+    const pAtk = PermUpgrades.getLevel('pAtk');
+    const pHp = PermUpgrades.getLevel('pHp');
+    const pSpd = PermUpgrades.getLevel('pSpd');
+    this.permDmgBonus = pAtk * 0.05;
+    this.permSpCharge = PermUpgrades.getLevel('pSp') * 0.08;
+    this.permXpBonus = PermUpgrades.getLevel('pXp') * 0.10;
+    if (ch.bonus && ch.bonus.xpBonus) this.permXpBonus += ch.bonus.xpBonus;
+    if (pHp) { this.player.maxHp += pHp * 10; this.player.hp = this.player.maxHp; }
+    if (pSpd) this.player.speed *= (1 + pSpd * 0.03);
     this.noDmgTimer = 0;
     document.getElementById('title-screen').classList.add('hidden');
     document.getElementById('gameover-screen').classList.remove('active');
@@ -1670,16 +2128,25 @@ class Game {
   spawnEnemy() {
     const p = this.player;
     const a = rand(0, Math.PI*2);
-    const d = 500 + rand(0,200);
+    const d = 350 + rand(0,150);
     const x = p.x + Math.cos(a)*d, y = p.y + Math.sin(a)*d;
     const stg = this.stageDef;
+    const currentWorld = stg.world || 1;
     const minute = this.stageTime / 60;
     const r = Math.random();
     let type;
     if (minute < 0.5) type = 'slime';
-    else if (minute < 1.5) type = r<0.6 ? 'slime' : 'bat';
-    else if (minute < 3) type = r<0.3 ? 'slime' : r<0.6 ? 'bat' : r<0.85 ? 'golem' : 'wraith';
-    else type = r<0.15 ? 'slime' : r<0.35 ? 'bat' : r<0.6 ? 'golem' : 'wraith';
+    else if (currentWorld === 1) {
+      if (minute < 1.5) type = r<0.5 ? 'slime' : r<0.8 ? 'bat' : 'scorpion';
+      else if (minute < 3) type = r<0.2 ? 'slime' : r<0.4 ? 'bat' : r<0.6 ? 'scorpion' : r<0.8 ? 'golem' : 'wraith';
+      else type = r<0.1 ? 'slime' : r<0.25 ? 'bat' : r<0.45 ? 'scorpion' : r<0.65 ? 'golem' : 'wraith';
+    } else if (currentWorld === 2) {
+      if (minute < 1.5) type = r<0.3 ? 'slime' : r<0.5 ? 'bat' : r<0.7 ? 'scorpion' : r<0.85 ? 'phantom' : 'dragon';
+      else type = r<0.1 ? 'slime' : r<0.2 ? 'bat' : r<0.35 ? 'scorpion' : r<0.5 ? 'golem' : r<0.65 ? 'wraith' : r<0.8 ? 'phantom' : 'dragon';
+    } else {
+      if (minute < 1.5) type = r<0.15 ? 'scorpion' : r<0.3 ? 'golem' : r<0.45 ? 'wraith' : r<0.6 ? 'phantom' : r<0.8 ? 'dragon' : 'demon';
+      else type = r<0.1 ? 'scorpion' : r<0.2 ? 'golem' : r<0.3 ? 'wraith' : r<0.45 ? 'phantom' : r<0.65 ? 'dragon' : 'demon';
+    }
 
     const def = ENEMY_TYPES[type];
     const hardMul = this.gameMode === 'hard' ? 2.0 : 1.0;
@@ -1687,9 +2154,9 @@ class Game {
     this.enemies.push({
       x, y, type,
       hp: def.hp * sc, maxHp: def.hp * sc,
-      speed: def.speed * (1 + this.currentStage * 0.1),
+      speed: def.speed * (1 + this.currentStage * 0.15),
       size: def.size, xp: def.xp + this.currentStage,
-      dmg: def.dmg * (1 + this.currentStage * 0.15),
+      dmg: def.dmg * (1 + this.currentStage * 0.2),
       color: def.color, slowTimer: 0, hitFlash: 0,
       spawnAnim: 0.3, isBoss: false
     });
@@ -1703,7 +2170,7 @@ class Game {
     const b = this.stageDef.boss;
     const a = rand(0, Math.PI*2);
     const boss = {
-      x: p.x + Math.cos(a)*500, y: p.y + Math.sin(a)*500,
+      x: p.x + Math.cos(a)*350, y: p.y + Math.sin(a)*350,
       type: 'boss', hp: b.hp, maxHp: b.hp,
       speed: b.speed, size: b.size, xp: 30 + this.currentStage*20,
       dmg: b.dmg, color: b.color, accent: b.accent,
@@ -1727,7 +2194,7 @@ class Game {
   checkObjectives() {
     if (this.gameMode === 'endless') {
       // Endless: change background theme every 2 minutes, spawn bosses every 3 min
-      const bgIdx = Math.min(4, Math.floor(this.time / 120));
+      const bgIdx = Math.min(STAGES.length-1, Math.floor(this.time / 120));
       if (bgIdx !== this.currentStage) {
         this.currentStage = bgIdx;
         this.stageDef = STAGES[bgIdx];
@@ -1757,6 +2224,12 @@ class Game {
   stageClear() {
     this.state = 'stageClear';
     this.objectives.boss = true;
+    // Save stage progress
+    const prof = Storage.getProfile();
+    if (!prof.maxStageClear || this.currentStage + 1 > prof.maxStageClear) {
+      prof.maxStageClear = this.currentStage + 1;
+      Storage.saveProfile(prof);
+    }
     document.getElementById('boss-hp-container').classList.remove('active');
     audio.play('clear', 0.5);
     vib([50,30,50,30,50,30,200]); // stage clear celebration
@@ -1778,7 +2251,7 @@ class Game {
     const xpReward = 30 + this.stageDef.id * 20;
     Storage.addCoins(coinReward);
     const updatedProf = Storage.addUserXp(xpReward);
-    const stats = `Stage ${this.stageDef.id}: ${this.stageDef.name}<br>Kills: ${this.stageKills}<br>Time: ${this.formatTime(this.stageTime)}<br>Level: ${this.player.level}<br><br><span style="color:#ffaa00">+${coinReward} coins</span> | <span style="color:#44ddff">+${xpReward} XP</span><br><span style="color:#888;font-size:13px">User Lv.${updatedProf.userLevel}</span>`;
+    const stats = `${this.stageDef.world}-${this.stageDef.stage} ${this.stageDef.name}<br>Kills: ${this.stageKills}<br>Time: ${this.formatTime(this.stageTime)}<br>Level: ${this.player.level}<br><br><span style="color:#ffaa00">+${coinReward} coins</span> | <span style="color:#44ddff">+${xpReward} XP</span><br><span style="color:#888;font-size:13px">User Lv.${updatedProf.userLevel}</span>`;
     document.getElementById('clear-stats').innerHTML = stats;
 
     if (this.currentStage >= STAGES.length - 1) {
@@ -1873,7 +2346,7 @@ class Game {
       Storage.unlockChar('void');
     }
     const score = calcScore(this);
-    Storage.addScore({ name: Storage.getUser()||'???', score, stage: 5, time: this.formatTime(this.time), kills: this.totalKills, level: this.player.level, combo: this.maxCombo, date: new Date().toLocaleDateString() });
+    Storage.addScore({ name: Storage.getUser()||'???', score, stage: STAGES.length, time: this.formatTime(this.time), kills: this.totalKills, level: this.player.level, combo: this.maxCombo, date: new Date().toLocaleDateString() });
     const coinReward = 200 + this.totalKills;
     const xpReward = 200 + this.totalKills;
     Storage.addCoins(coinReward);
@@ -1886,7 +2359,7 @@ class Game {
     DailySystem.updateProgress('combo', this.maxCombo);
     DailySystem.updateProgress('time', Math.floor(this.time));
     DailySystem.updateProgress('level', this.player.level);
-    DailySystem.updateProgress('stage', 5);
+    DailySystem.updateProgress('stage', STAGES.length);
     DailySystem.updateProgress('score', calcScore(this));
   }
 
@@ -1955,19 +2428,81 @@ class Game {
       e.shootTimer -= dt;
       if (e.shootTimer <= 0) {
         const d2 = dist(e, p);
-        if (e.isBoss && d2 < 600) {
-          // Boss: 3-way shot
-          e.shootTimer = 1.5;
-          for (let s = -1; s <= 1; s++) {
-            const sa = a + s * 0.3;
-            this.enemyBullets.push({ x:e.x, y:e.y, vx:Math.cos(sa)*180, vy:Math.sin(sa)*180, dmg:e.dmg*0.5, size:6, life:3, color:e.accent||'#ff4444' });
+        if (e.isBoss && d2 < 700) {
+          // Boss: cycle through attack patterns
+          const world = this.stageDef.world || 1;
+          e.bossAtk = ((e.bossAtk||0) + 1);
+          const pattern = e.bossAtk % (world >= 3 ? 6 : world >= 2 ? 5 : 4);
+          const bc = e.accent || '#ff4444';
+
+          if (pattern === 0) {
+            // Spread shot (fan)
+            e.shootTimer = world >= 3 ? 0.7 : 0.9;
+            const spread = world >= 3 ? 3 : world >= 2 ? 2 : 1;
+            for (let s = -spread; s <= spread; s++) {
+              const sa = a + s * 0.22;
+              this.enemyBullets.push({ x:e.x, y:e.y, vx:Math.cos(sa)*220, vy:Math.sin(sa)*220, dmg:e.dmg*0.4, size:6, life:3, color:bc });
+            }
+          } else if (pattern === 1) {
+            // Ring burst (360 degree)
+            e.shootTimer = world >= 3 ? 1.0 : 1.4;
+            const count = 8 + world * 4;
+            for (let i = 0; i < count; i++) {
+              const ra = (i / count) * Math.PI * 2 + (e.phaseTimer || 0);
+              const spd = 150 + world * 20;
+              this.enemyBullets.push({ x:e.x, y:e.y, vx:Math.cos(ra)*spd, vy:Math.sin(ra)*spd, dmg:e.dmg*0.3, size:5, life:3.5, color:bc });
+            }
+            // Particles
+            for (let i=0;i<12;i++) { const pa=rand(0,Math.PI*2); addParticle(this.particles,{x:e.x,y:e.y,vx:Math.cos(pa)*100,vy:Math.sin(pa)*100,life:0.3,maxLife:0.3,size:rand(2,5),color:bc}); }
+          } else if (pattern === 2) {
+            // Homing missile (slow but tracks player)
+            e.shootTimer = world >= 3 ? 0.8 : 1.2;
+            const missileCount = world;
+            for (let i = 0; i < missileCount; i++) {
+              const offset = (i - (missileCount-1)/2) * 0.5;
+              const ma = a + offset;
+              this.enemyBullets.push({ x:e.x, y:e.y, vx:Math.cos(ma)*120, vy:Math.sin(ma)*120, dmg:e.dmg*0.5, size:7, life:4, color:'#ff8844', homing:true, turnSpeed:2.5 });
+            }
+          } else if (pattern === 3) {
+            // Spiral barrage
+            e.shootTimer = world >= 3 ? 0.6 : 1.0;
+            const spiralCount = 3 + world;
+            for (let i = 0; i < spiralCount; i++) {
+              const delay = i * 80;
+              setTimeout(() => {
+                if (!this.bossAlive || this.state !== 'playing') return;
+                const sa = a + (e.phaseTimer||0) * 3 + i * 0.8;
+                this.enemyBullets.push({ x:e.x, y:e.y, vx:Math.cos(sa)*200, vy:Math.sin(sa)*200, dmg:e.dmg*0.35, size:5, life:3, color:'#ff44ff' });
+              }, delay);
+            }
+          } else if (pattern === 4) {
+            // Shotgun blast (tight cluster, high damage)
+            e.shootTimer = 1.5;
+            for (let i = 0; i < 5 + world; i++) {
+              const sa = a + rand(-0.15, 0.15);
+              const spd = rand(180, 280);
+              this.enemyBullets.push({ x:e.x, y:e.y, vx:Math.cos(sa)*spd, vy:Math.sin(sa)*spd, dmg:e.dmg*0.35, size:4, life:2, color:'#ffdd44' });
+            }
+            audio.play('explosion', 0.2);
+          } else if (pattern === 5) {
+            // Laser sweep (line of bullets in a sweep) - W3 only
+            e.shootTimer = 0.5;
+            const sweepAngle = a - 0.8 + (e.bossAtk % 2) * 1.6;
+            for (let i = 0; i < 8; i++) {
+              const delay = i * 60;
+              setTimeout(() => {
+                if (!this.bossAlive || this.state !== 'playing') return;
+                const la = sweepAngle + i * 0.2;
+                this.enemyBullets.push({ x:e.x, y:e.y, vx:Math.cos(la)*280, vy:Math.sin(la)*280, dmg:e.dmg*0.3, size:4, life:2.5, color:'#ff0066' });
+                this.enemyBullets.push({ x:e.x, y:e.y, vx:Math.cos(la)*220, vy:Math.sin(la)*220, dmg:e.dmg*0.25, size:3, life:2.5, color:'#ff006688' });
+              }, delay);
+            }
+            vib(20);
           }
         } else if (e.type === 'wraith' && d2 < 400) {
-          // Wraith: single aimed shot
           e.shootTimer = 2.0;
           this.enemyBullets.push({ x:e.x, y:e.y, vx:Math.cos(a)*150, vy:Math.sin(a)*150, dmg:e.dmg*0.6, size:5, life:2.5, color:'#ff6666' });
         } else if (e.type === 'golem' && d2 < 300) {
-          // Golem: slow heavy shot
           e.shootTimer = 3.0;
           this.enemyBullets.push({ x:e.x, y:e.y, vx:Math.cos(a)*100, vy:Math.sin(a)*100, dmg:e.dmg*0.8, size:8, life:3, color:'#ffaa44' });
         } else {
@@ -1981,7 +2516,7 @@ class Game {
         this.playerTakeDamage(e.dmg);
         if (p.hp <= 0) return;
       }
-      if (d > 1200 && !e.isBoss) this.enemies.splice(i, 1);
+      if (d > 800 && !e.isBoss) this.enemies.splice(i, 1);
     }
 
     // Update enemy bullets
@@ -2005,6 +2540,21 @@ class Game {
     const p = this.player;
     for (let i = this.enemyBullets.length-1; i >= 0; i--) {
       const b = this.enemyBullets[i];
+      // Homing missile tracking
+      if (b.homing) {
+        const ta = angle(b, p);
+        const ca = Math.atan2(b.vy, b.vx);
+        let diff = ta - ca;
+        while (diff > Math.PI) diff -= Math.PI*2;
+        while (diff < -Math.PI) diff += Math.PI*2;
+        const turn = clamp(diff, -(b.turnSpeed||2)*dt, (b.turnSpeed||2)*dt);
+        const spd = Math.hypot(b.vx, b.vy);
+        const na = ca + turn;
+        b.vx = Math.cos(na) * spd;
+        b.vy = Math.sin(na) * spd;
+        // Trail particles for homing
+        if (Math.random() < 0.3) addParticle(this.particles,{x:b.x,y:b.y,vx:rand(-20,20),vy:rand(-20,20),life:0.2,maxLife:0.2,size:rand(1,3),color:b.color});
+      }
       b.x += b.vx * dt;
       b.y += b.vy * dt;
       b.life -= dt;
@@ -2045,10 +2595,44 @@ class Game {
         break;
       }
       case 'lightning': {
-        const ts = this.getClosest(lv, 300);
+        const evo = w.evolved ? WEAPON_EVOLUTIONS.lightning : null;
+        const strikeCount = evo ? lv * 3 : lv;
+        const baseDmg = (30 + lv * 12) * (evo ? evo.dmgMul : 1);
+        const chainCount = Math.floor(1 + lv * 0.5) + (evo ? 4 : 0); // chains per strike: 1-5 + evo bonus
+        const chainRange = 120 + lv * 15; // chain reach grows with level
+        const ts = this.getClosest(strikeCount, 350);
+        const alreadyHit = new Set();
         for (const t of ts) {
-          this.damageEnemy(t, 30+lv*10);
+          // Primary strike
+          this.damageEnemy(t, baseDmg);
+          alreadyHit.add(t);
           for (let j=0;j<10;j++) addParticle(this.particles,{ x:t.x+rand(-20,20), y:t.y+rand(-40,0), vx:rand(-60,60), vy:rand(-120,-20), life:0.3, maxLife:0.3, size:rand(2,6), color:'#ffff44' });
+          // Chain lightning to nearby enemies
+          let chainSource = t;
+          let chainDmg = baseDmg;
+          for (let c = 0; c < chainCount; c++) {
+            chainDmg *= 0.7; // 30% dmg reduction per chain
+            let closest = null, closestDist = chainRange;
+            for (const e of this.enemies) {
+              if (alreadyHit.has(e) || e.spawnAnim > 0) continue;
+              const d2 = dist(chainSource, e);
+              if (d2 < closestDist) { closest = e; closestDist = d2; }
+            }
+            if (!closest) break;
+            alreadyHit.add(closest);
+            this.damageEnemy(closest, chainDmg);
+            // Chain lightning visual (line + sparks)
+            const steps = 5;
+            for (let s = 0; s <= steps; s++) {
+              const frac = s / steps;
+              const lx = chainSource.x + (closest.x - chainSource.x) * frac + rand(-12, 12);
+              const ly = chainSource.y + (closest.y - chainSource.y) * frac + rand(-12, 12);
+              addParticle(this.particles, { x:lx, y:ly, vx:rand(-30,30), vy:rand(-50,-10), life:0.25, maxLife:0.25, size:rand(2,5), color: c < 2 ? '#ffff88' : '#88ccff' });
+            }
+            // Spark burst at chain target
+            for (let j=0;j<5;j++) addParticle(this.particles,{ x:closest.x+rand(-10,10), y:closest.y+rand(-20,0), vx:rand(-40,40), vy:rand(-80,-20), life:0.2, maxLife:0.2, size:rand(1,4), color:'#ffff00' });
+            chainSource = closest;
+          }
         }
         if (ts.length) audio.play('lightning', 0.3);
         break;
@@ -2063,7 +2647,8 @@ class Game {
       }
       case 'frostNova': {
         const range = 80+lv*20, dmg = 20+lv*8;
-        for (const e of this.enemies) { if (dist(e,p)<range) { this.damageEnemy(e,dmg); e.slowTimer=1+lv*0.5; } }
+        const freezeMul = 1 + (this.freezeDurBonus || 0);
+        for (const e of this.enemies) { if (dist(e,p)<range) { this.damageEnemy(e,dmg); e.slowTimer=(1+lv*0.5)*freezeMul; } }
         for (let i=0;i<30;i++) { const a=(i/30)*Math.PI*2; addParticle(this.particles,{ x:p.x+Math.cos(a)*range*0.3, y:p.y+Math.sin(a)*range*0.3, vx:Math.cos(a)*range*1.5, vy:Math.sin(a)*range*1.5, life:0.5, maxLife:0.5, size:rand(3,8), color:'#aaeeff' }); }
         audio.play('explosion', 0.3);
         break;
@@ -2084,6 +2669,70 @@ class Game {
           }, delay);
           addParticle(this.particles,{x:tx,y:ty,vx:0,vy:0,life:delay/1000,maxLife:delay/1000,size:60+lv*10,color:'#ff440033',type:'warning'});
         }
+        break;
+      }
+      case 'holyLance': {
+        const evo = w.evolved ? WEAPON_EVOLUTIONS.holyLance : null;
+        const count = evo ? lv*3 : lv;
+        const dmg = (35+lv*10) * (evo?evo.dmgMul:1);
+        for (let i=0;i<count;i++) {
+          const a = p.facing + (i-(count-1)/2)*0.25;
+          this.projectiles.push({ x:p.x, y:p.y, vx:Math.cos(a)*500, vy:Math.sin(a)*500, dmg, size:evo?10:7, life:2, color:evo?evo.color:'#ffdd44', type:'shuriken', pierce:lv+2, rotation:0 });
+        }
+        audio.play('hit', 0.15);
+        break;
+      }
+      case 'poisonCloud': {
+        const evo = w.evolved ? WEAPON_EVOLUTIONS.poisonCloud : null;
+        const range = (100+lv*25) * (evo&&evo.rangeMul?evo.rangeMul:1);
+        const dmg = (8+lv*3) * (evo?evo.dmgMul:1);
+        for (const e of this.enemies) { if (dist(e,p)<range) { this.damageEnemy(e,dmg); e.slowTimer=Math.max(e.slowTimer,0.5); } }
+        for (let i=0;i<20;i++) { const a=(i/20)*Math.PI*2; addParticle(this.particles,{ x:p.x+Math.cos(a)*range*0.3, y:p.y+Math.sin(a)*range*0.3, vx:Math.cos(a)*range*0.8, vy:Math.sin(a)*range*0.8, life:0.8, maxLife:0.8, size:rand(4,10), color:'#88cc44' }); }
+        audio.play('explosion', 0.2);
+        break;
+      }
+      case 'voidOrb': {
+        const evo = w.evolved ? WEAPON_EVOLUTIONS.voidOrb : null;
+        const count = 1+Math.floor(lv/2);
+        const dmg = (40+lv*12) * (evo?evo.dmgMul:1);
+        for (let i=0;i<count;i++) {
+          const a = p.facing + (i-(count-1)/2)*0.6;
+          this.projectiles.push({ x:p.x, y:p.y, vx:Math.cos(a)*180, vy:Math.sin(a)*180, dmg, size:evo?16:12, life:3, color:evo?evo.color:'#8800aa', type:'bullet', pierce:lv+1 });
+        }
+        audio.play('hit', 0.2);
+        break;
+      }
+      case 'chainSaw': {
+        const evo = w.evolved ? WEAPON_EVOLUTIONS.chainSaw : null;
+        const range = (50+lv*15) * (evo&&evo.rangeMul?evo.rangeMul:1);
+        const dmg = (18+lv*6) * (evo?evo.dmgMul:1);
+        for (const e of this.enemies) { if (dist(e,p)<range) this.damageEnemy(e,dmg); }
+        for (let i=0;i<16;i++) { const a=(i/16)*Math.PI*2; addParticle(this.particles,{ x:p.x+Math.cos(a)*range*0.5, y:p.y+Math.sin(a)*range*0.5, vx:Math.cos(a)*range*2, vy:Math.sin(a)*range*2, life:0.3, maxLife:0.3, size:rand(2,6), color:'#dd6644' }); }
+        audio.play('hit', 0.15);
+        break;
+      }
+      case 'ricochet': {
+        const count = lv + 1;
+        const evo = w.evolved ? WEAPON_EVOLUTIONS.ricochet : null;
+        const dmg = (20 + lv * 7) * (evo ? evo.dmgMul : 1);
+        const bounces = evo ? 99 : 3 + lv;
+        for (let i = 0; i < count; i++) {
+          const a = p.facing + (i - (count-1)/2) * 0.4;
+          this.projectiles.push({ x:p.x, y:p.y, vx:Math.cos(a)*500, vy:Math.sin(a)*500, dmg, size:evo?7:5, life:4, color:evo?evo.color:'#44ffaa', type:'ricochet', bounce:bounces, pierce:0 });
+        }
+        audio.play('hit', 0.15);
+        break;
+      }
+      case 'plasmaWall': {
+        const count = Math.ceil(lv / 2);
+        const evo = w.evolved ? WEAPON_EVOLUTIONS.plasmaWall : null;
+        const dmg = (45 + lv * 15) * (evo ? evo.dmgMul : 1);
+        const bounces = evo ? 99 : 4 + lv;
+        for (let i = 0; i < count; i++) {
+          const a = rand(0, Math.PI * 2);
+          this.projectiles.push({ x:p.x, y:p.y, vx:Math.cos(a)*350, vy:Math.sin(a)*350, dmg, size:evo?10:7, life:5, color:evo?evo.color:'#ff88ff', type:'plasma', bounce:bounces, pierce:1 });
+        }
+        audio.play('lightning', 0.2);
         break;
       }
     }
@@ -2114,7 +2763,11 @@ class Game {
   damageEnemy(e, dmg) {
     // Apply character damage bonus
     const charBonus = this.charDef && this.charDef.bonus && this.charDef.bonus.dmg ? this.charDef.bonus.dmg : 0;
-    const finalDmg = dmg * (1 + charBonus + (this.permDmgBonus||0));
+    let finalDmg = dmg * (1 + charBonus + (this.permDmgBonus||0));
+    if (this.critChance && Math.random() < this.critChance) {
+      finalDmg *= 2;
+      this.spawnDmgNum(e.x, e.y-e.size-10, 'CRIT!', '#ff4444');
+    }
     e.hp -= finalDmg; e.hitFlash = 0.1;
     this.spawnDmgNum(e.x, e.y-e.size, Math.round(finalDmg), e.isBoss?'#ff8844':'#ffff00');
     // Hit sparks - flashy
@@ -2141,7 +2794,7 @@ class Game {
 
     // SP gauge charge (more SP from combos + char bonus)
     const spChargeBonus = this.charDef && this.charDef.bonus && this.charDef.bonus.spCharge ? this.charDef.bonus.spCharge : 0;
-    const spGain = (3 + Math.min(this.combo * 0.5, 10) + (e.isBoss ? 30 : 0)) * (1 + spChargeBonus + (this.permSpCharge||0));
+    const spGain = (1.5 + Math.min(this.combo * 0.2, 5) + (e.isBoss ? 15 : 0)) * (1 + spChargeBonus + (this.permSpCharge||0));
     this.player.sp = Math.min(this.player.sp + spGain, this.player.spMax);
     if (this.player.sp >= this.player.spMax && !this.player.ultReady) {
       this.player.ultReady = true;
@@ -2223,6 +2876,8 @@ class Game {
       for (let i=0;i<20;i++) {
         this.xpGems.push({ x:e.x+rand(-50,50), y:e.y+rand(-50,50), xp:5+this.currentStage*3, size:10, color:'#ffdd00', mag:false });
       }
+      // Auto-collect ALL XP gems after boss defeat
+      for (const gem of this.xpGems) gem.mag = true;
       this.bossClearTimer = 1.5; // delay before stage clear
     } else {
       audio.play('kill', 0.12 + Math.min(this.combo*0.003, 0.15));
@@ -2251,6 +2906,15 @@ class Game {
         pr.vx=Math.cos(na)*sp; pr.vy=Math.sin(na)*sp;
       }
       pr.x+=pr.vx*dt; pr.y+=pr.vy*dt; pr.life-=dt;
+      // Wall bounce
+      if (pr.bounce !== undefined && pr.bounce > 0) {
+        if (pr.x < 0 || pr.x > WORLD_SIZE) { pr.vx = -pr.vx; pr.bounce--; pr.x = clamp(pr.x, 0, WORLD_SIZE);
+          for(let k=0;k<5;k++) addParticle(this.particles,{x:pr.x,y:pr.y,vx:rand(-80,80),vy:rand(-80,80),life:0.2,maxLife:0.2,size:rand(2,4),color:pr.color});
+        }
+        if (pr.y < 0 || pr.y > WORLD_SIZE) { pr.vy = -pr.vy; pr.bounce--; pr.y = clamp(pr.y, 0, WORLD_SIZE);
+          for(let k=0;k<5;k++) addParticle(this.particles,{x:pr.x,y:pr.y,vx:rand(-80,80),vy:rand(-80,80),life:0.2,maxLife:0.2,size:rand(2,4),color:pr.color});
+        }
+      }
       if(pr.rotation!==undefined)pr.rotation+=dt*15;
       if(pr.life<=0){this.projectiles.splice(i,1);continue;}
       for(let j=this.enemies.length-1;j>=0;j--){
@@ -2290,7 +2954,7 @@ class Game {
         for(let j=0;j<3;j++) addParticle(this.particles,{x:g.x,y:g.y,vx:rand(-40,40),vy:rand(-60,-20),life:0.3,maxLife:0.3,size:rand(1,3),color:g.color});
         while(p.xp>=p.xpToNext){
           p.xp-=p.xpToNext; p.level++;
-          p.xpToNext=Math.floor(5+p.level*3+p.level*p.level*0.4);
+          p.xpToNext=Math.floor(8+p.level*5+p.level*p.level*0.8);
           this.triggerLevelUp();
         }
       }
@@ -2322,7 +2986,7 @@ class Game {
     const pool = [];
     const owned = Object.keys(this.player.weapons);
     for (const w of owned) if(this.player.weapons[w].level<8) pool.push({type:'weapon',key:w,isNew:false});
-    if (owned.length<6) for(const w of Object.keys(WEAPON_DEFS)) if(!owned.includes(w)) pool.push({type:'weapon',key:w,isNew:true});
+    if (owned.length<12) { const currentWorld = STAGES[this.currentStage]?.world || 1; for(const w of Object.keys(WEAPON_DEFS)) { if(!owned.includes(w)) { const wDef = WEAPON_DEFS[w]; if (!wDef.worldUnlock || currentWorld >= wDef.worldUnlock) pool.push({type:'weapon',key:w,isNew:true}); } } }
     for (const [k,d] of Object.entries(PASSIVE_DEFS)) if(this.player.passives[k]<d.maxLv) pool.push({type:'passive',key:k});
     this.levelupChoices = [];
     for (let i=0;i<3&&pool.length;i++){const idx=randInt(0,pool.length-1);this.levelupChoices.push(pool.splice(idx,1)[0]);}
@@ -2409,7 +3073,7 @@ class Game {
     // Spawn
     const stg = this.stageDef;
     const minute = this.stageTime / 60;
-    let rate = Math.max(0.08, (0.8 - minute*0.06)) / stg.spawnMul;
+    let rate = Math.max(0.05, (0.6 - minute*0.08)) / stg.spawnMul;
     if (this.bossAlive) rate *= 2.5; // slow spawns during boss fight
     this.spawnTimer -= gameDt;
     if (this.spawnTimer <= 0) {
@@ -2426,6 +3090,15 @@ class Game {
 
     // No-damage timer for achievement
     this.noDmgTimer = (this.noDmgTimer||0) + gameDt;
+
+    // Regen (angel character bonus)
+    if (this.regenTimer !== undefined) {
+      this.regenTimer += gameDt;
+      if (this.regenTimer >= 3) {
+        this.regenTimer = 0;
+        this.player.hp = Math.min(this.player.hp + 1, this.player.maxHp);
+      }
+    }
 
     // Spawn in-game treasure chest every 45 seconds
     this.chestSpawnTimer = (this.chestSpawnTimer||0) - gameDt;
@@ -2483,7 +3156,7 @@ class Game {
     document.getElementById('hud-level').textContent = `Lv.${p.level}`;
     document.getElementById('hud-kills').textContent = `Kills: ${this.stageKills}`;
     document.getElementById('hud-time').textContent = this.formatTime(this.stageTime);
-    document.getElementById('stage-name').textContent = `STAGE ${s.id} - ${s.name}`;
+    document.getElementById('stage-name').textContent = `${s.world}-${s.stage} ${s.name}`;
     document.getElementById('stage-name').style.color = s.accent;
 
     // Objectives
@@ -2561,7 +3234,7 @@ class Game {
     oc.width = WORLD_SIZE; oc.height = WORLD_SIZE;
     const c = oc.getContext('2d');
     const s = this.stageDef;
-    const stageId = s.id;
+    const envType = s.envType;
 
     // Base fill
     c.fillStyle = s.bg;
@@ -2571,7 +3244,7 @@ class Game {
       const hash = ((x*73+y*137)&0xff)/255;
       const hash2 = ((x*41+y*97)&0xff)/255;
 
-      if (stageId === 1) {
+      if (envType === 'leaf') {
         c.strokeStyle = s.grid; c.lineWidth = 1; c.strokeRect(x,y,TILE,TILE);
         if (hash > 0.4) {
           c.fillStyle = '#1a3a1a'; c.globalAlpha = 0.4 + hash2*0.3;
@@ -2584,24 +3257,24 @@ class Game {
           c.fillStyle = '#2a1a0a'; c.beginPath(); c.arc(x+TILE/2, y+TILE/2, 10+hash2*8, 0, Math.PI*2); c.fill();
           c.fillStyle = '#1a3a1a44'; c.beginPath(); c.arc(x+TILE/2, y+TILE/2, 18+hash2*12, 0, Math.PI*2); c.fill();
         }
-      } else if (stageId === 2) {
+      } else if (envType === 'sand') {
         c.fillStyle = hash > 0.5 ? '#1e1608' : '#1a1408'; c.fillRect(x,y,TILE,TILE);
         c.strokeStyle = '#2a200e'; c.lineWidth = 0.5; c.globalAlpha = 0.5;
         for (let r=0;r<3;r++) { const ry=y+10+r*25+hash*10; c.beginPath(); c.moveTo(x,ry); c.quadraticCurveTo(x+TILE/2,ry-5+hash2*10,x+TILE,ry+3); c.stroke(); }
         c.globalAlpha = 1;
         if (hash > 0.9) { c.fillStyle='#3a2a1a'; c.beginPath(); c.ellipse(x+TILE*hash2,y+TILE*hash,8+hash*6,5+hash2*4,hash,0,Math.PI*2); c.fill(); }
         if (hash2 > 0.85) { c.strokeStyle='#0e0a0444'; c.lineWidth=1; c.beginPath(); c.moveTo(x+TILE*hash,y); c.lineTo(x+TILE*hash+15,y+TILE*hash2); c.lineTo(x+TILE*hash+5,y+TILE); c.stroke(); }
-      } else if (stageId === 3) {
+      } else if (envType === 'snow') {
         c.fillStyle = hash > 0.5 ? '#0c1822' : '#0a1520'; c.fillRect(x,y,TILE,TILE);
         if (hash > 0.7) { c.fillStyle='#ffffff'; c.globalAlpha=0.03+hash2*0.04; c.fillRect(x+hash*30,y+hash2*30,20+hash*30,2); c.globalAlpha=1; }
         if (hash > 0.85) { c.fillStyle='#1a2a3a'; c.globalAlpha=0.5; c.beginPath(); c.ellipse(x+TILE/2,y+TILE/2,14+hash2*10,8+hash*5,0,0,Math.PI*2); c.fill(); c.fillStyle='#2a3a4a'; c.beginPath(); c.ellipse(x+TILE/2-2,y+TILE/2-2,10+hash2*6,5+hash*3,0,0,Math.PI*2); c.fill(); c.globalAlpha=1; }
         c.strokeStyle='#182838'; c.lineWidth=0.5; c.strokeRect(x,y,TILE,TILE);
-      } else if (stageId === 4) {
+      } else if (envType === 'ember') {
         c.fillStyle = hash > 0.6 ? '#1e0a0a' : '#1a0808'; c.fillRect(x,y,TILE,TILE);
         if (hash2 > 0.7) { c.strokeStyle='#ff220022'; c.lineWidth=2; c.beginPath(); c.moveTo(x+hash*TILE,y); c.quadraticCurveTo(x+TILE/2+hash2*20,y+TILE/2,x+hash2*TILE,y+TILE); c.stroke(); c.strokeStyle='#ff440011'; c.lineWidth=6; c.stroke(); }
         if (hash > 0.88) { c.fillStyle='#2a1111'; c.beginPath(); c.ellipse(x+TILE*hash2,y+TILE*hash,7+hash*8,5+hash2*6,hash*3,0,Math.PI*2); c.fill(); }
         if (hash > 0.93) { c.fillStyle='#ff440033'; c.beginPath(); c.arc(x+TILE*hash2,y+TILE*hash,3+hash*4,0,Math.PI*2); c.fill(); }
-      } else if (stageId === 5) {
+      } else if (envType === 'star') {
         c.fillStyle = hash > 0.5 ? '#0c0618' : '#0a0510'; c.fillRect(x,y,TILE,TILE);
         if (hash > 0.75) { c.fillStyle='#ffffff'; c.globalAlpha=hash2*0.4; c.beginPath(); c.arc(x+hash*TILE,y+hash2*TILE,0.5+hash*1.5,0,Math.PI*2); c.fill(); c.globalAlpha=1; }
         if (hash > 0.9) { c.fillStyle=hash2>0.5?'#aa44ff08':'#4444ff08'; c.beginPath(); c.arc(x+TILE/2,y+TILE/2,20+hash*25,0,Math.PI*2); c.fill(); }
@@ -3028,7 +3701,7 @@ class Game {
                 // Rune on chest
         ctx.strokeStyle='#ffaa0066';ctx.lineWidth=1.5;
         ctx.beginPath();ctx.moveTo(0,-S*0.35);ctx.lineTo(-S*0.2,0);ctx.lineTo(0,S*0.15);ctx.lineTo(S*0.2,0);ctx.closePath();ctx.stroke();
-      } else {
+      } else if (e.type==='wraith') {
         // Wraith - ghostly floating figure
         const S = e.size;
         const wave = this.time*5;
@@ -3067,6 +3740,38 @@ class Game {
             ctx.quadraticCurveTo(Math.cos(wave+t2*2)*S*0.4,S*0.5+Math.sin(wave+t2)*5,Math.sin(wave+t2)*S*0.2,S*0.7);
             ctx.stroke();
           }
+        }
+      } else {
+        // Generic enemy drawing (scorpion, dragon, phantom, demon, etc.)
+        const S = e.size;
+        // Body circle
+        ctx.fillStyle=e.hitFlash>0?'#fff':col;
+        ctx.beginPath(); ctx.arc(0,0,S,0,Math.PI*2); ctx.fill();
+        // Inner highlight
+        ctx.fillStyle='rgba(255,255,255,0.15)';
+        ctx.beginPath(); ctx.arc(-S*0.2,-S*0.25,S*0.5,0,Math.PI*2); ctx.fill();
+        // Eyes
+        ctx.fillStyle='#fff';
+        ctx.beginPath(); ctx.ellipse(-S*0.3,-S*0.15,3,3.5,0,0,Math.PI*2); ctx.ellipse(S*0.3,-S*0.15,3,3.5,0,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle='#111';
+        ctx.beginPath(); ctx.arc(-S*0.3,-S*0.15,1.5,0,Math.PI*2); ctx.arc(S*0.3,-S*0.15,1.5,0,Math.PI*2); ctx.fill();
+        // Type-specific accent
+        if (e.type==='dragon'||e.type==='demon') {
+          // Horns
+          ctx.fillStyle=col;
+          ctx.beginPath();ctx.moveTo(-S*0.4,-S*0.6);ctx.lineTo(-S*0.2,-S*1.2);ctx.lineTo(0,-S*0.6);ctx.fill();
+          ctx.beginPath();ctx.moveTo(0,-S*0.6);ctx.lineTo(S*0.2,-S*1.2);ctx.lineTo(S*0.4,-S*0.6);ctx.fill();
+        }
+        if (e.type==='phantom') {
+          // Wispy tail
+          ctx.fillStyle=col+'66';
+          ctx.beginPath();ctx.moveTo(-S*0.4,S*0.5);ctx.quadraticCurveTo(0,S*1.5,S*0.4,S*0.5);ctx.fill();
+        }
+        if (e.type==='scorpion') {
+          // Tail/stinger
+          ctx.strokeStyle=col;ctx.lineWidth=2;
+          ctx.beginPath();ctx.moveTo(0,-S*0.3);ctx.quadraticCurveTo(S*0.5,-S*1.2,S*0.2,-S*1.4);ctx.stroke();
+          ctx.fillStyle=col;ctx.beginPath();ctx.arc(S*0.2,-S*1.4,2,0,Math.PI*2);ctx.fill();
         }
       }
 
@@ -3108,6 +3813,18 @@ class Game {
         ctx.beginPath();
         for(let i=0;i<8;i++){const a=(i/8)*Math.PI*2,r=i%2===0?pr.size:pr.size*0.4;ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r);}
         ctx.closePath(); ctx.fill();
+      } else if (pr.type==='ricochet') {
+        // Diamond shape
+        ctx.fillStyle=pr.color;
+        ctx.beginPath();
+        ctx.moveTo(0,-pr.size); ctx.lineTo(pr.size*0.6,0); ctx.lineTo(0,pr.size); ctx.lineTo(-pr.size*0.6,0);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(0,-pr.size*0.2,pr.size*0.25,0,Math.PI*2); ctx.fill();
+      } else if (pr.type==='plasma') {
+        // Glowing plasma orb
+        ctx.fillStyle=pr.color+'44'; ctx.beginPath(); ctx.arc(0,0,pr.size+4,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle=pr.color; ctx.beginPath(); ctx.arc(0,0,pr.size,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(0,0,pr.size*0.4,0,Math.PI*2); ctx.fill();
       } else {
         ctx.fillStyle=pr.color; ctx.beginPath(); ctx.arc(0,0,pr.size,0,Math.PI*2); ctx.fill();
         ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(0,0,pr.size*0.4,0,Math.PI*2); ctx.fill();
@@ -3279,6 +3996,8 @@ document.getElementById('pause-home').onclick = goHome;
 document.getElementById('btn-upgrade').onclick = showUpgradeShop;
 document.getElementById('upgrade-close').onclick = () => { document.getElementById('upgrade-screen').classList.remove('active'); updateTitleScreen(); };
 // Daily
+document.getElementById('btn-stages').onclick = showStageSelect;
+document.getElementById('stage-select-close').onclick = () => { document.getElementById('stage-select').classList.remove('active'); };
 document.getElementById('btn-daily').onclick = showDailyScreen;
 document.getElementById('daily-close').onclick = () => { document.getElementById('daily-screen').classList.remove('active'); updateTitleScreen(); };
 document.getElementById('chest-box').onclick = doOpenChest;
