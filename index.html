@@ -388,6 +388,104 @@ canvas { display: block; }
   opacity: 0; transition: opacity 0.3s; z-index: 300; pointer-events: none;
 }
 #copy-toast.show { opacity: 1; }
+
+/* Home / secondary buttons */
+.home-btn {
+  background: transparent; color: #888; border: 1px solid #555;
+  padding: 10px 30px; font-size: 14px; font-weight: 600;
+  border-radius: 50px; cursor: pointer; transition: all 0.3s;
+  font-family: 'Orbitron', sans-serif; margin-top: 8px;
+}
+.home-btn:hover { color: #fff; border-color: #aaa; }
+
+/* Name input screen */
+#name-screen {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: radial-gradient(ellipse at 50% 40%, #1a0a2e 0%, #000 100%);
+  z-index: 210; justify-content: center; align-items: center; flex-direction: column;
+}
+#name-screen.active { display: flex; }
+#name-screen h2 {
+  color: #ffdd00; font-size: 24px; font-family: 'Orbitron', sans-serif;
+  margin-bottom: 20px; text-shadow: 0 0 20px #ffdd0044;
+}
+#name-input {
+  background: #111; border: 2px solid #444; color: #fff;
+  padding: 12px 20px; font-size: 20px; border-radius: 10px;
+  text-align: center; width: 250px; font-family: 'Orbitron', sans-serif;
+  outline: none; transition: border-color 0.3s;
+}
+#name-input:focus { border-color: #ffdd00; }
+#name-input::placeholder { color: #555; }
+#name-submit {
+  background: linear-gradient(135deg, #ffdd00, #ff8800);
+  color: #111; border: none; padding: 12px 40px;
+  font-size: 18px; font-weight: 700; border-radius: 50px;
+  cursor: pointer; margin-top: 20px; font-family: 'Orbitron', sans-serif;
+  transition: all 0.3s;
+}
+#name-submit:hover { transform: scale(1.06); }
+
+/* Ranking screen */
+#ranking-screen {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.95); z-index: 205;
+  justify-content: center; align-items: center; flex-direction: column;
+}
+#ranking-screen.active { display: flex; }
+#ranking-title {
+  color: #ffdd00; font-size: 28px; font-weight: 900;
+  font-family: 'Orbitron', sans-serif; margin-bottom: 20px;
+  text-shadow: 0 0 20px #ffdd0044;
+}
+#ranking-list {
+  width: 340px; max-width: 90vw; max-height: 50vh; overflow-y: auto;
+}
+.rank-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 14px; border-bottom: 1px solid #222;
+  font-family: 'Rajdhani', sans-serif; font-size: 15px;
+}
+.rank-row:nth-child(1) { color: #ffdd00; font-size: 17px; font-weight: 700; }
+.rank-row:nth-child(2) { color: #cccccc; }
+.rank-row:nth-child(3) { color: #cc8844; }
+.rank-row .rank-pos { color: #888; width: 30px; font-family: 'Orbitron', sans-serif; font-size: 13px; }
+.rank-row .rank-name { flex: 1; color: inherit; margin: 0 10px; }
+.rank-row .rank-score { color: inherit; font-family: 'Orbitron', sans-serif; font-size: 13px; }
+.rank-row .rank-detail { color: #666; font-size: 12px; margin-left: 8px; }
+#ranking-close {
+  margin-top: 20px;
+}
+
+/* Pause menu */
+#pause-screen {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.8); z-index: 110;
+  justify-content: center; align-items: center; flex-direction: column;
+}
+#pause-screen.active { display: flex; }
+#pause-title {
+  color: #fff; font-size: 36px; font-weight: 900;
+  font-family: 'Orbitron', sans-serif; margin-bottom: 30px;
+}
+.pause-btn {
+  background: rgba(255,255,255,0.1); color: #fff; border: 1px solid #555;
+  padding: 12px 40px; font-size: 16px; font-weight: 600; border-radius: 10px;
+  cursor: pointer; margin: 6px; width: 200px; text-align: center;
+  font-family: 'Orbitron', sans-serif; transition: all 0.2s;
+}
+.pause-btn:hover { background: rgba(255,255,255,0.2); border-color: #aaa; }
+
+/* Title screen additions */
+#title-best { color: #888; font-size: 14px; margin-top: 15px; font-family: 'Orbitron', sans-serif; }
+#title-user { color: #ffdd00; font-size: 13px; margin-bottom: 5px; font-family: 'Orbitron', sans-serif; }
+#title-buttons { display: flex; gap: 10px; margin-top: 15px; }
+.title-sub-btn {
+  background: rgba(255,255,255,0.08); color: #aaa; border: 1px solid #444;
+  padding: 8px 20px; font-size: 13px; border-radius: 20px;
+  cursor: pointer; font-family: 'Orbitron', sans-serif; transition: all 0.2s;
+}
+.title-sub-btn:hover { color: #fff; border-color: #888; }
 </style>
 </head>
 <body>
@@ -425,12 +523,36 @@ canvas { display: block; }
   <div id="stage-intro-goal"></div>
 </div>
 
+<div id="name-screen">
+  <h2>ENTER YOUR NAME</h2>
+  <input type="text" id="name-input" placeholder="Name" maxlength="12" autocomplete="off">
+  <button id="name-submit">OK</button>
+</div>
+
 <div id="title-screen">
   <canvas id="title-bg"></canvas>
+  <div id="title-user"></div>
   <div id="game-title">INFINITY<br>SURVIVORS</div>
   <div id="title-subtitle">SURVIVE THE ENDLESS HORDE</div>
   <button id="start-btn">START</button>
-  <div id="controls-hint">WASD / Arrow Keys to move<br>Touch screen for mobile</div>
+  <div id="title-best"></div>
+  <div id="title-buttons">
+    <button class="title-sub-btn" id="btn-ranking">RANKING</button>
+    <button class="title-sub-btn" id="btn-changename">CHANGE NAME</button>
+  </div>
+  <div id="controls-hint">WASD / Arrow Keys to move | ESC to pause<br>Touch screen for mobile</div>
+</div>
+
+<div id="ranking-screen">
+  <div id="ranking-title">RANKING</div>
+  <div id="ranking-list"></div>
+  <button class="home-btn" id="ranking-close">CLOSE</button>
+</div>
+
+<div id="pause-screen">
+  <div id="pause-title">PAUSED</div>
+  <button class="pause-btn" id="pause-resume">RESUME</button>
+  <button class="pause-btn" id="pause-home">HOME</button>
 </div>
 
 <div id="gameover-screen">
@@ -441,6 +563,7 @@ canvas { display: block; }
     <button class="share-btn copy-btn" id="share-copy-go">Copy Result</button>
   </div>
   <button id="retry-btn">RETRY</button>
+  <button class="home-btn" id="go-home-btn">HOME</button>
 </div>
 
 <div id="victory-screen">
@@ -451,6 +574,7 @@ canvas { display: block; }
     <button class="share-btn copy-btn" id="share-copy-vic">Copy Result</button>
   </div>
   <button id="victory-retry-btn">PLAY AGAIN</button>
+  <button class="home-btn" id="vic-home-btn">HOME</button>
 </div>
 
 <div id="stage-clear">
@@ -506,6 +630,64 @@ class AudioSystem {
   }
 }
 const audio = new AudioSystem();
+
+// ---- User & Ranking System ----
+const Storage = {
+  getUser() { return localStorage.getItem('is_username') || ''; },
+  setUser(n) { localStorage.setItem('is_username', n); },
+  getRankings() {
+    try { return JSON.parse(localStorage.getItem('is_rankings') || '[]'); } catch(e) { return []; }
+  },
+  addScore(entry) {
+    const r = this.getRankings();
+    r.push(entry);
+    r.sort((a,b) => b.score - a.score);
+    localStorage.setItem('is_rankings', JSON.stringify(r.slice(0, 20)));
+  },
+  getBest() {
+    const r = this.getRankings();
+    return r.length ? r[0] : null;
+  }
+};
+
+function calcScore(g) {
+  return g.totalKills * 10 + Math.floor(g.time) * 5 + g.player.level * 50 + (g.currentStage) * 500 + g.maxCombo * 3;
+}
+
+function showRanking() {
+  const list = document.getElementById('ranking-list');
+  const ranks = Storage.getRankings();
+  list.innerHTML = '';
+  if (ranks.length === 0) {
+    list.innerHTML = '<div style="color:#666;text-align:center;padding:20px;font-family:Rajdhani,sans-serif;">No records yet. Play to set a score!</div>';
+  } else {
+    ranks.forEach((r, i) => {
+      const row = document.createElement('div');
+      row.className = 'rank-row';
+      const medal = i===0?'\u{1F947}':i===1?'\u{1F948}':i===2?'\u{1F949}':'';
+      row.innerHTML = `<span class="rank-pos">${medal||('#'+(i+1))}</span><span class="rank-name">${r.name}</span><span class="rank-score">${r.score}</span><span class="rank-detail">S${r.stage} ${r.time}</span>`;
+      list.appendChild(row);
+    });
+  }
+  document.getElementById('ranking-screen').classList.add('active');
+}
+
+function goHome() {
+  // Hide all screens, show title
+  ['gameover-screen','victory-screen','stage-clear','pause-screen','ranking-screen','levelup-screen','stage-intro','boss-hp-container'].forEach(id => {
+    document.getElementById(id).classList.remove('active');
+  });
+  document.getElementById('title-screen').classList.remove('hidden');
+  updateTitleScreen();
+  game = null;
+}
+
+function updateTitleScreen() {
+  const user = Storage.getUser();
+  document.getElementById('title-user').textContent = user ? `Welcome, ${user}` : '';
+  const best = Storage.getBest();
+  document.getElementById('title-best').textContent = best ? `Best: ${best.score} pts (${best.name})` : '';
+}
 
 // ---- Performance ----
 const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
@@ -717,6 +899,9 @@ class Game {
     this.trails = [];
     this.time = 0; this.kills = 0; this.totalKills = 0;
     this.camera.shake = 0;
+    this.combo = 0; this.comboTimer = 0; this.maxCombo = 0; this.comboFrozen = false;
+    this.hitstop = 0; this.camZoom = 1; this.camZoomTarget = 1;
+    this.killBurst = 0; this.slowmo = 0;
     this.currentStage = 0;
     this.startStage(0);
   }
@@ -893,8 +1078,10 @@ class Game {
 
   showVictory() {
     this.state = 'victory';
+    const score = calcScore(this);
+    Storage.addScore({ name: Storage.getUser()||'???', score, stage: 5, time: this.formatTime(this.time), kills: this.totalKills, level: this.player.level, combo: this.maxCombo, date: new Date().toLocaleDateString() });
     document.getElementById('victory-stats').innerHTML =
-      `All stages cleared!<br>Total Kills: ${this.totalKills}<br>Total Time: ${this.formatTime(this.time)}<br>Final Level: ${this.player.level}`;
+      `All stages cleared!<br>Total Kills: ${this.totalKills}<br>Total Time: ${this.formatTime(this.time)}<br>Final Level: ${this.player.level}<br>Max Combo: ${this.maxCombo}<br><span style="color:#ffdd00;font-size:28px;font-family:Orbitron,sans-serif">SCORE: ${score}</span>`;
     document.getElementById('victory-screen').classList.add('active');
   }
 
@@ -1290,11 +1477,13 @@ class Game {
 
   gameOver() {
     this.state = 'gameover';
-    vib([200,100,400]); // death
+    vib([200,100,400]);
     screenFlash('rgba(255,0,0,0.4)', 600);
     document.getElementById('boss-hp-container').classList.remove('active');
+    const score = calcScore(this);
+    Storage.addScore({ name: Storage.getUser()||'???', score, stage: this.currentStage+1, time: this.formatTime(this.time), kills: this.totalKills, level: this.player.level, combo: this.maxCombo, date: new Date().toLocaleDateString() });
     document.getElementById('gameover-stats').innerHTML =
-      `Stage: ${this.stageDef.name}<br>Time: ${this.formatTime(this.time)}<br>Level: ${this.player.level}<br>Total Kills: ${this.totalKills}`;
+      `Stage: ${this.stageDef.name}<br>Time: ${this.formatTime(this.time)}<br>Level: ${this.player.level}<br>Kills: ${this.totalKills}<br>Max Combo: ${this.maxCombo}<br><span style="color:#ffdd00;font-size:24px;font-family:Orbitron,sans-serif">SCORE: ${score}</span>`;
     document.getElementById('gameover-screen').classList.add('active');
   }
 
@@ -1978,7 +2167,19 @@ function resize() { canvas.width=window.innerWidth; canvas.height=window.innerHe
 window.addEventListener('resize', resize); resize();
 
 // ---- Input ----
-window.addEventListener('keydown', e=>{ if(game) game.keys[e.code]=true; });
+window.addEventListener('keydown', e=>{
+  if(!game) return;
+  game.keys[e.code]=true;
+  if(e.code==='Escape') {
+    if(game.state==='playing') {
+      game.state='paused';
+      document.getElementById('pause-screen').classList.add('active');
+    } else if(game.state==='paused') {
+      game.state='playing';
+      document.getElementById('pause-screen').classList.remove('active');
+    }
+  }
+});
 window.addEventListener('keyup', e=>{ if(game) game.keys[e.code]=false; });
 let touchId=null;
 function tStart(e) {
@@ -2001,6 +2202,32 @@ document.addEventListener('touchstart',e=>{if(game&&game.state==='playing')tStar
 document.addEventListener('touchmove',tMove,{passive:false});
 document.addEventListener('touchend',tEnd);
 
+// ---- Name Screen ----
+function checkUser() {
+  const user = Storage.getUser();
+  if (!user) {
+    document.getElementById('name-screen').classList.add('active');
+    document.getElementById('title-screen').classList.add('hidden');
+  } else {
+    document.getElementById('name-screen').classList.remove('active');
+    document.getElementById('title-screen').classList.remove('hidden');
+    updateTitleScreen();
+  }
+}
+document.getElementById('name-submit').onclick = () => {
+  const val = document.getElementById('name-input').value.trim();
+  if (val) {
+    Storage.setUser(val);
+    document.getElementById('name-screen').classList.remove('active');
+    document.getElementById('title-screen').classList.remove('hidden');
+    updateTitleScreen();
+  }
+};
+document.getElementById('name-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('name-submit').click();
+});
+checkUser();
+
 // ---- Buttons ----
 document.getElementById('start-btn').onclick = () => { game=new Game(); game.start(); };
 document.getElementById('retry-btn').onclick = () => { game.start(); };
@@ -2008,6 +2235,24 @@ document.getElementById('victory-retry-btn').onclick = () => { game.start(); };
 document.getElementById('next-stage-btn').onclick = () => {
   document.getElementById('stage-clear').classList.remove('active');
   game.startStage(game.currentStage + 1);
+};
+// Home buttons
+document.getElementById('go-home-btn').onclick = goHome;
+document.getElementById('vic-home-btn').onclick = goHome;
+document.getElementById('pause-home').onclick = goHome;
+// Ranking
+document.getElementById('btn-ranking').onclick = showRanking;
+document.getElementById('ranking-close').onclick = () => document.getElementById('ranking-screen').classList.remove('active');
+// Change name
+document.getElementById('btn-changename').onclick = () => {
+  document.getElementById('name-input').value = Storage.getUser();
+  document.getElementById('name-screen').classList.add('active');
+  document.getElementById('title-screen').classList.add('hidden');
+};
+// Pause
+document.getElementById('pause-resume').onclick = () => {
+  document.getElementById('pause-screen').classList.remove('active');
+  if (game) game.state = 'playing';
 };
 // Share buttons
 document.getElementById('share-x-go').onclick = () => shareToX('gameover');
