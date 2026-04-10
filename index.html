@@ -1018,7 +1018,6 @@ class Game {
     this.bossRef = boss;
 
     // Boss intro
-    this.camera.shake = 20;
     audio.play('boss', 0.5);
     vib([100,50,100,50,200]); // boss appear
     screenFlash('rgba(255,0,0,0.3)', 500);
@@ -1048,7 +1047,6 @@ class Game {
     audio.play('clear', 0.5);
     vib([50,30,50,30,50,30,200]); // stage clear celebration
     screenFlash('rgba(255,255,200,0.5)', 800);
-    this.camera.shake = 15;
 
     // Celebration particles
     for (let i = 0; i < 60; i++) {
@@ -1149,7 +1147,6 @@ class Game {
       if (d < e.size+12 && p.invincible <= 0) {
         p.hp -= e.dmg;
         p.invincible = 0.5;
-        this.camera.shake = Math.max(this.camera.shake, 8);
         audio.play('playerHit', 0.4);
         vib(50); // player hit
         this.combo = 0; this.comboTimer = 0; // reset combo on damage
@@ -1221,7 +1218,6 @@ class Game {
             const range=60+lv*10, dmg=50+lv*15;
             for(const e of this.enemies){if(dist(e,{x:tx,y:ty})<range)this.damageEnemy(e,dmg);}
             for(let j=0;j<25;j++){const a2=rand(0,Math.PI*2),spd2=rand(50,250);addParticle(this.particles,{x:tx,y:ty,vx:Math.cos(a2)*spd2,vy:Math.sin(a2)*spd2,life:0.7,maxLife:0.7,size:rand(3,12),color:rand(0,1)>0.5?'#ff6600':'#ffaa00'});}
-            this.camera.shake=Math.max(this.camera.shake,10);
             audio.play('explosion',0.4);
           }, delay);
           addParticle(this.particles,{x:tx,y:ty,vx:0,vy:0,life:delay/1000,maxLife:delay/1000,size:60+lv*10,color:'#ff440033',type:'warning'});
@@ -1344,7 +1340,6 @@ class Game {
 
     if (e.isBoss) {
       this.bossAlive = false;
-      this.camera.shake = 30;
       audio.play('explosion', 0.6);
       vib([100,30,100,30,300]);
       screenFlash('rgba(255,255,200,0.7)', 800);
