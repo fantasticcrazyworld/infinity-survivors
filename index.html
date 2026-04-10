@@ -1259,12 +1259,12 @@ const STAGES = [
 
 // ---- Weapon Defs ----
 const WEAPON_DEFS = {
-  magicBullet: { name:'Magic Bullet', icon:'\u{1F52E}', color:'#aa66ff', desc:'Homing bullets at nearest enemy', baseCooldown:800, baseDamage:15, levelDesc:lv=>`Lv.${lv}: ${lv} bullets, ${15+lv*5} dmg` },
+  magicBullet: { name:'Magic Bullet', icon:'\u{1F52E}', color:'#aa66ff', desc:'Homing bullets at nearest enemy', baseCooldown:600, baseDamage:15, levelDesc:lv=>`Lv.${lv}: ${lv} bullets, ${15+lv*5} dmg` },
   fireCircle: { name:'Fire Circle', icon:'\u{1F525}', color:'#ff6600', desc:'Orbiting flames around you', baseCooldown:0, baseDamage:10, levelDesc:lv=>`Lv.${lv}: ${2+lv} flames, ${10+lv*3} dmg` },
-  lightning:   { name:'Lightning', icon:'\u26A1', color:'#ffff00', desc:'Strikes random nearby enemies', baseCooldown:1200, baseDamage:30, levelDesc:lv=>`Lv.${lv}: ${lv} strikes, ${30+lv*10} dmg` },
-  shuriken:    { name:'Shuriken', icon:'\u{1F4A0}', color:'#88ccff', desc:'Fast piercing projectiles', baseCooldown:600, baseDamage:12, levelDesc:lv=>`Lv.${lv}: ${lv} shurikens, pierce ${lv}` },
-  frostNova:   { name:'Frost Nova', icon:'\u2744\uFE0F', color:'#66ddff', desc:'Freezing explosion around you', baseCooldown:2500, baseDamage:20, levelDesc:lv=>`Lv.${lv}: range ${80+lv*20}, slow ${1+lv*0.5}s` },
-  meteor:      { name:'Meteor', icon:'\u2604\uFE0F', color:'#ff4400', desc:'Meteors fall on enemy positions', baseCooldown:2000, baseDamage:50, levelDesc:lv=>`Lv.${lv}: ${lv} meteors, ${50+lv*15} dmg` }
+  lightning:   { name:'Lightning', icon:'\u26A1', color:'#ffff00', desc:'Strikes random nearby enemies', baseCooldown:900, baseDamage:30, levelDesc:lv=>`Lv.${lv}: ${lv} strikes, ${30+lv*10} dmg` },
+  shuriken:    { name:'Shuriken', icon:'\u{1F4A0}', color:'#88ccff', desc:'Fast piercing projectiles', baseCooldown:450, baseDamage:12, levelDesc:lv=>`Lv.${lv}: ${lv} shurikens, pierce ${lv}` },
+  frostNova:   { name:'Frost Nova', icon:'\u2744\uFE0F', color:'#66ddff', desc:'Freezing explosion around you', baseCooldown:2000, baseDamage:20, levelDesc:lv=>`Lv.${lv}: range ${80+lv*20}, slow ${1+lv*0.5}s` },
+  meteor:      { name:'Meteor', icon:'\u2604\uFE0F', color:'#ff4400', desc:'Meteors fall on enemy positions', baseCooldown:1500, baseDamage:50, levelDesc:lv=>`Lv.${lv}: ${lv} meteors, ${50+lv*15} dmg` }
 };
 const PASSIVE_DEFS = {
   speed:    { name:'Speed Boost', icon:'\u{1F45F}', color:'#44ff44', desc:'+15% movement speed', maxLv:5 },
@@ -1275,10 +1275,10 @@ const PASSIVE_DEFS = {
 
 // ---- Enemy Types ----
 const ENEMY_TYPES = {
-  slime:  { color:'#44cc44', speed:50, hp:25, size:14, xp:1, dmg:7 },
-  bat:    { color:'#aa44ff', speed:95, hp:18, size:12, xp:2, dmg:10 },
-  golem:  { color:'#888888', speed:30, hp:100, size:20, xp:5, dmg:18 },
-  wraith: { color:'#ff4444', speed:85, hp:70, size:16, xp:8, dmg:15 }
+  slime:  { color:'#44cc44', speed:60, hp:25, size:14, xp:1, dmg:7 },
+  bat:    { color:'#aa44ff', speed:110, hp:18, size:12, xp:2, dmg:10 },
+  golem:  { color:'#888888', speed:38, hp:100, size:20, xp:5, dmg:18 },
+  wraith: { color:'#ff4444', speed:100, hp:70, size:16, xp:8, dmg:15 }
 };
 
 // ---- GAME ----
@@ -1318,7 +1318,7 @@ class Game {
   init() {
     this.player = {
       x: WORLD_SIZE/2, y: WORLD_SIZE/2,
-      hp: 100, maxHp: 100, speed: 150,
+      hp: 100, maxHp: 100, speed: 200,
       xp: 0, level: 1, xpToNext: 10,
       weapons: {}, passives: { speed:0, maxHp:0, magnet:0, cooldown:0 },
       invincible: 0, pickupRange: 50, facing: 0, bobTimer: 0,
@@ -1752,7 +1752,7 @@ class Game {
         const ts = this.getClosest(lv);
         for (const t of ts) {
           const a = angle(p, t);
-          this.projectiles.push({ x:p.x, y:p.y, vx:Math.cos(a)*300, vy:Math.sin(a)*300, dmg:15+lv*5, size:5, life:2, color:'#aa66ff', type:'bullet', pierce:0, homing:t });
+          this.projectiles.push({ x:p.x, y:p.y, vx:Math.cos(a)*420, vy:Math.sin(a)*420, dmg:15+lv*5, size:5, life:2, color:'#aa66ff', type:'bullet', pierce:0, homing:t });
         }
         if (ts.length) audio.play('hit', 0.15);
         break;
@@ -1769,7 +1769,7 @@ class Game {
       case 'shuriken': {
         for (let i=0;i<lv;i++) {
           const a = p.facing + (i-(lv-1)/2)*0.3;
-          this.projectiles.push({ x:p.x, y:p.y, vx:Math.cos(a)*500, vy:Math.sin(a)*500, dmg:12+lv*4, size:6, life:1.5, color:'#88ccff', type:'shuriken', pierce:lv, rotation:0 });
+          this.projectiles.push({ x:p.x, y:p.y, vx:Math.cos(a)*650, vy:Math.sin(a)*650, dmg:12+lv*4, size:6, life:1.5, color:'#88ccff', type:'shuriken', pierce:lv, rotation:0 });
         }
         audio.play('hit', 0.15);
         break;
@@ -1984,7 +1984,7 @@ class Game {
     for (let i=this.xpGems.length-1;i>=0;i--) {
       const g = this.xpGems[i];
       const d = dist(g,p);
-      if(d<p.pickupRange||g.mag){g.mag=true;const a=angle(g,p);g.x+=Math.cos(a)*400*dt;g.y+=Math.sin(a)*400*dt;}
+      if(d<p.pickupRange||g.mag){g.mag=true;const a=angle(g,p);g.x+=Math.cos(a)*600*dt;g.y+=Math.sin(a)*600*dt;}
       if(d<15){
         p.xp+=g.xp; this.xpGems.splice(i,1);
         audio.play('xp',0.08);
