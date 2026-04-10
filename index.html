@@ -1219,41 +1219,41 @@ const STAGES = [
     id: 1, name: 'DARK FOREST', subtitle: 'The shadow awakens',
     bg: '#0a140a', grid: '#122212', tile: '#0d1a0d', accent: '#22aa44',
     envColor: '#44cc4488', envType: 'leaf',
-    killGoal: 50, timeGoal: 0,
-    boss: { name: 'FOREST GUARDIAN', color: '#22cc44', accent: '#88ff88', hp: 500, size: 45, speed: 45, dmg: 22 },
-    enemyScale: 1.2, spawnMul: 1.2
+    killGoal: 60, timeGoal: 0,
+    boss: { name: 'FOREST GUARDIAN', color: '#22cc44', accent: '#88ff88', hp: 300, size: 45, speed: 45, dmg: 18 },
+    enemyScale: 1.0, spawnMul: 1.3
   },
   {
     id: 2, name: 'SCORCHING DESERT', subtitle: 'Heat shimmers in the wasteland',
     bg: '#1a1408', grid: '#2a2010', tile: '#1e1a0a', accent: '#dd8822',
     envColor: '#ddaa4444', envType: 'sand',
-    killGoal: 100, timeGoal: 90,
-    boss: { name: 'SAND WYRM', color: '#ddaa22', accent: '#ffdd66', hp: 900, size: 50, speed: 55, dmg: 28 },
-    enemyScale: 1.8, spawnMul: 1.5
+    killGoal: 100, timeGoal: 60,
+    boss: { name: 'SAND WYRM', color: '#ddaa22', accent: '#ffdd66', hp: 600, size: 50, speed: 55, dmg: 22 },
+    enemyScale: 1.3, spawnMul: 1.5
   },
   {
     id: 3, name: 'FROZEN TUNDRA', subtitle: 'Silence before the storm',
     bg: '#08101a', grid: '#102030', tile: '#0a1520', accent: '#44aadd',
     envColor: '#aaddff66', envType: 'snow',
     killGoal: 150, timeGoal: 0,
-    boss: { name: 'FROST TITAN', color: '#44aadd', accent: '#aaeeff', hp: 1400, size: 55, speed: 40, dmg: 35 },
-    enemyScale: 2.5, spawnMul: 1.8
+    boss: { name: 'FROST TITAN', color: '#44aadd', accent: '#aaeeff', hp: 900, size: 55, speed: 40, dmg: 28 },
+    enemyScale: 1.6, spawnMul: 1.8
   },
   {
     id: 4, name: 'INFERNO VOLCANO', subtitle: 'The earth bleeds fire',
     bg: '#1a0808', grid: '#2a1010', tile: '#1e0a0a', accent: '#ff4422',
     envColor: '#ff440044', envType: 'ember',
-    killGoal: 200, timeGoal: 120,
-    boss: { name: 'INFERNO LORD', color: '#ff4422', accent: '#ffaa44', hp: 2000, size: 55, speed: 50, dmg: 40 },
-    enemyScale: 3.5, spawnMul: 2.0
+    killGoal: 160, timeGoal: 90,
+    boss: { name: 'INFERNO LORD', color: '#ff4422', accent: '#ffaa44', hp: 1200, size: 55, speed: 50, dmg: 35 },
+    enemyScale: 2.0, spawnMul: 2.0
   },
   {
     id: 5, name: 'THE VOID', subtitle: 'Beyond the edge of reality',
     bg: '#0a0510', grid: '#140a20', tile: '#0e0818', accent: '#aa44ff',
     envColor: '#aa44ff44', envType: 'star',
-    killGoal: 300, timeGoal: 0,
-    boss: { name: 'VOID EMPEROR', color: '#aa44ff', accent: '#ddaaff', hp: 3500, size: 60, speed: 60, dmg: 50 },
-    enemyScale: 5.0, spawnMul: 2.5
+    killGoal: 200, timeGoal: 0,
+    boss: { name: 'VOID EMPEROR', color: '#aa44ff', accent: '#ddaaff', hp: 2000, size: 60, speed: 60, dmg: 45 },
+    enemyScale: 3.0, spawnMul: 2.5
   }
 ];
 
@@ -1331,7 +1331,7 @@ class Game {
     this.time = 0; this.kills = 0; this.totalKills = 0;
     this.camera.shake = 0;
     this.combo = 0; this.comboTimer = 0; this.maxCombo = 0; this.comboFrozen = false;
-    this.hitstop = 0; this.camZoom = 1; this.camZoomTarget = 1;
+    this.hitstop = 0; this.camZoom = 1; this.camZoomTarget = 1; this.bossClearTimer = 0;
     this.killBurst = 0; this.slowmo = 0;
     this.currentStage = 0;
     this.startStage(0);
@@ -1429,7 +1429,7 @@ class Game {
     else type = r<0.15 ? 'slime' : r<0.35 ? 'bat' : r<0.6 ? 'golem' : 'wraith';
 
     const def = ENEMY_TYPES[type];
-    const sc = stg.enemyScale * (1 + minute * 0.1);
+    const sc = stg.enemyScale * (1 + minute * 0.05); // slower HP scaling
     this.enemies.push({
       x, y, type,
       hp: def.hp * sc, maxHp: def.hp * sc,
@@ -1936,7 +1936,7 @@ class Game {
       for (let i=0;i<20;i++) {
         this.xpGems.push({ x:e.x+rand(-50,50), y:e.y+rand(-50,50), xp:5+this.currentStage*3, size:10, color:'#ffdd00', mag:false });
       }
-      setTimeout(() => this.stageClear(), 1500);
+      this.bossClearTimer = 1.5; // delay before stage clear
     } else {
       audio.play('kill', 0.12 + Math.min(this.combo*0.003, 0.15));
       // Pitch up kill sound with combo
@@ -2109,12 +2109,19 @@ class Game {
     // Spawn
     const stg = this.stageDef;
     const minute = this.stageTime / 60;
-    const rate = Math.max(0.08, (0.8 - minute*0.06)) / stg.spawnMul;
+    let rate = Math.max(0.08, (0.8 - minute*0.06)) / stg.spawnMul;
+    if (this.bossAlive) rate *= 2.5; // slow spawns during boss fight
     this.spawnTimer -= gameDt;
     if (this.spawnTimer <= 0) {
       this.spawnTimer = rate;
       const batch = Math.floor(1 + minute*0.5);
       for (let i=0;i<batch;i++) if(this.enemies.length<MAX_ENEMIES) this.spawnEnemy();
+    }
+
+    // Boss clear delay
+    if (this.bossClearTimer > 0) {
+      this.bossClearTimer -= gameDt;
+      if (this.bossClearTimer <= 0) { this.bossClearTimer = 0; this.stageClear(); return; }
     }
 
     this.updatePlayer(gameDt);
