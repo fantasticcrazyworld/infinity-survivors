@@ -487,6 +487,71 @@ canvas { display: block; }
 }
 .title-sub-btn:hover { color: #fff; border-color: #888; }
 
+/* Daily / Login / Chest UI */
+#daily-screen {
+  display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+  background:rgba(0,0,0,0.92); z-index:206;
+  justify-content:center; align-items:center; flex-direction:column;
+}
+#daily-screen.active { display:flex; }
+#daily-title {
+  color:#ffdd00; font-size:22px; font-weight:900;
+  font-family:'Orbitron',sans-serif; margin-bottom:6px;
+  text-shadow:0 0 15px #ffdd0044;
+}
+#daily-subtitle { color:#888; font-size:13px; margin-bottom:18px; font-family:'Rajdhani',sans-serif; }
+#daily-challenges { width:320px; max-width:90vw; }
+.daily-row {
+  display:flex; justify-content:space-between; align-items:center;
+  padding:10px 14px; margin:5px 0; background:#111; border:1px solid #333;
+  border-radius:8px; font-family:'Rajdhani',sans-serif;
+}
+.daily-row.done { border-color:#44ff44; opacity:0.6; }
+.daily-desc { color:#ccc; font-size:14px; flex:1; }
+.daily-reward { color:#ffaa00; font-size:13px; font-family:'Orbitron',sans-serif; margin-left:10px; }
+.daily-check { color:#44ff44; font-size:16px; margin-left:8px; }
+#daily-close { margin-top:15px; }
+
+/* Login streak */
+#login-streak {
+  display:flex; gap:4px; margin:12px 0; justify-content:center;
+}
+.streak-day {
+  width:36px; height:44px; background:#111; border:1px solid #333;
+  border-radius:6px; display:flex; flex-direction:column;
+  justify-content:center; align-items:center; font-size:9px;
+  font-family:'Orbitron',sans-serif; color:#666;
+}
+.streak-day.claimed { border-color:#ffdd00; color:#ffdd00; background:#1a1a00; }
+.streak-day.today { border-color:#44ff44; color:#44ff44; animation:pulse 0.5s ease-in-out infinite alternate; }
+.streak-day .streak-num { font-size:12px; font-weight:700; }
+.streak-day .streak-reward { font-size:8px; color:#ffaa00; }
+
+/* Chest animation */
+#chest-screen {
+  display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+  background:rgba(0,0,0,0.92); z-index:207;
+  justify-content:center; align-items:center; flex-direction:column;
+}
+#chest-screen.active { display:flex; }
+#chest-box {
+  font-size:80px; cursor:pointer; transition:transform 0.2s;
+  animation:chestBounce 0.8s ease-in-out infinite;
+}
+#chest-box:hover { transform:scale(1.1); }
+#chest-box.opened { animation:none; }
+@keyframes chestBounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+#chest-hint { color:#888; font-size:14px; margin-top:10px; font-family:'Rajdhani',sans-serif; }
+#chest-result {
+  display:none; text-align:center; margin-top:20px;
+}
+#chest-result.show { display:block; }
+#chest-reward-text {
+  color:#ffdd00; font-size:22px; font-weight:700;
+  font-family:'Orbitron',sans-serif; margin:10px 0;
+}
+#chest-reward-desc { color:#aaa; font-size:14px; }
+
 /* SP Gauge */
 #sp-bar-container {
   position: fixed; bottom: 96px; left: 50%; transform: translateX(-50%);
@@ -639,11 +704,30 @@ canvas { display: block; }
   <button id="start-btn">START</button>
   <div id="title-best"></div>
   <div id="title-buttons">
+    <button class="title-sub-btn" id="btn-daily">DAILY</button>
     <button class="title-sub-btn" id="btn-shop">CHARACTERS</button>
     <button class="title-sub-btn" id="btn-ranking">RANKING</button>
     <button class="title-sub-btn" id="btn-changename">NAME</button>
   </div>
   <div id="controls-hint">WASD / Arrow Keys to move | ESC to pause<br>Touch screen for mobile</div>
+</div>
+
+<div id="daily-screen">
+  <div id="daily-title">DAILY CHALLENGE</div>
+  <div id="daily-subtitle"></div>
+  <div id="login-streak"></div>
+  <div id="daily-challenges"></div>
+  <button class="home-btn" id="daily-close">CLOSE</button>
+</div>
+
+<div id="chest-screen">
+  <div id="chest-box">🎁</div>
+  <div id="chest-hint">Tap to open!</div>
+  <div id="chest-result">
+    <div id="chest-reward-text"></div>
+    <div id="chest-reward-desc"></div>
+    <button class="home-btn" id="chest-close" style="margin-top:15px">OK</button>
+  </div>
 </div>
 
 <div id="shop-screen">
@@ -769,6 +853,171 @@ const Storage = {
   selectChar(id) { const p=this.getProfile(); p.selectedChar=id; this.saveProfile(p); return p; }
 };
 
+// ---- Daily / Login / Chest System ----
+const DailySystem = {
+  getToday() { return new Date().toISOString().slice(0,10); },
+  getData() {
+    try { return JSON.parse(localStorage.getItem('is_daily')||'null') || { lastLogin:'', streak:0, challengeDate:'', challenges:[], chestAvail:false }; }
+    catch(e) { return { lastLogin:'', streak:0, challengeDate:'', challenges:[], chestAvail:false }; }
+  },
+  save(d) { localStorage.setItem('is_daily', JSON.stringify(d)); },
+
+  checkLogin() {
+    const d = this.getData();
+    const today = this.getToday();
+    if (d.lastLogin === today) return d; // already logged in today
+
+    const yesterday = new Date(Date.now()-86400000).toISOString().slice(0,10);
+    if (d.lastLogin === yesterday) {
+      d.streak = Math.min(d.streak + 1, 7);
+    } else {
+      d.streak = 1; // reset
+    }
+    d.lastLogin = today;
+
+    // Login bonus coins
+    const bonus = [10,15,20,30,40,50,100][d.streak-1] || 10;
+    Storage.addCoins(bonus);
+    d.loginReward = bonus;
+
+    // Generate daily challenges if new day
+    if (d.challengeDate !== today) {
+      d.challengeDate = today;
+      const seed = parseInt(today.replace(/-/g,'')) % 1000;
+      const allChallenges = [
+        { desc:'Kill 30 enemies', key:'kills', target:30, reward:20 },
+        { desc:'Kill 60 enemies', key:'kills', target:60, reward:40 },
+        { desc:'Reach 20 combo', key:'combo', target:20, reward:30 },
+        { desc:'Reach 50 combo', key:'combo', target:50, reward:60 },
+        { desc:'Survive 2 minutes', key:'time', target:120, reward:25 },
+        { desc:'Survive 5 minutes', key:'time', target:300, reward:50 },
+        { desc:'Reach Level 5', key:'level', target:5, reward:25 },
+        { desc:'Reach Level 10', key:'level', target:10, reward:50 },
+        { desc:'Clear Stage 1', key:'stage', target:1, reward:30 },
+        { desc:'Clear Stage 2', key:'stage', target:2, reward:50 },
+        { desc:'Use Ultimate 3 times', key:'ults', target:3, reward:35 },
+        { desc:'Score 500 points', key:'score', target:500, reward:30 },
+        { desc:'Score 2000 points', key:'score', target:2000, reward:60 },
+      ];
+      // Pick 3 based on seed
+      const shuffled = allChallenges.sort(() => ((seed*7+13)%100)/100 - 0.5);
+      d.challenges = shuffled.slice(0,3).map(c => ({...c, progress:0, done:false}));
+    }
+    d.chestAvail = false;
+    this.save(d);
+    return d;
+  },
+
+  updateProgress(key, value) {
+    const d = this.getData();
+    let allDone = true;
+    for (const c of d.challenges) {
+      if (c.key === key && !c.done) {
+        c.progress = Math.max(c.progress, value);
+        if (c.progress >= c.target) {
+          c.done = true;
+          Storage.addCoins(c.reward);
+        }
+      }
+      if (!c.done) allDone = false;
+    }
+    if (allDone && !d.chestAvail) d.chestAvail = true;
+    this.save(d);
+    return d;
+  },
+
+  isChestAvailable() { return this.getData().chestAvail; }
+};
+
+// Chest rewards pool
+const CHEST_REWARDS = [
+  { type:'coins', amount:50,  text:'+50 Coins', desc:'A small pouch of gold', weight:30 },
+  { type:'coins', amount:100, text:'+100 Coins', desc:'A shiny bag of gold!', weight:20 },
+  { type:'coins', amount:200, text:'+200 Coins', desc:'A treasure chest of gold!!', weight:8 },
+  { type:'coins', amount:500, text:'+500 Coins', desc:'JACKPOT! A massive fortune!!!', weight:2 },
+  { type:'xp',    amount:50,  text:'+50 XP', desc:'A burst of experience', weight:25 },
+  { type:'xp',    amount:150, text:'+150 XP', desc:'A surge of power!', weight:10 },
+  { type:'heal',  amount:0,   text:'Full Heal', desc:'Start next game with bonus HP', weight:5 },
+];
+
+function openChest() {
+  // Weighted random
+  const total = CHEST_REWARDS.reduce((s,r) => s+r.weight, 0);
+  let roll = Math.random() * total;
+  let reward = CHEST_REWARDS[0];
+  for (const r of CHEST_REWARDS) {
+    roll -= r.weight;
+    if (roll <= 0) { reward = r; break; }
+  }
+  // Apply reward
+  if (reward.type === 'coins') Storage.addCoins(reward.amount);
+  else if (reward.type === 'xp') Storage.addUserXp(reward.amount);
+  // Mark chest as used
+  const d = DailySystem.getData();
+  d.chestAvail = false;
+  DailySystem.save(d);
+  return reward;
+}
+
+function showDailyScreen() {
+  const d = DailySystem.checkLogin();
+  // Streak display
+  const streakEl = document.getElementById('login-streak');
+  streakEl.innerHTML = '';
+  for (let i = 1; i <= 7; i++) {
+    const bonus = [10,15,20,30,40,50,100][i-1];
+    const div = document.createElement('div');
+    div.className = 'streak-day' + (i < d.streak ? ' claimed' : '') + (i === d.streak ? ' today' : '');
+    div.innerHTML = `<span class="streak-num">D${i}</span><span class="streak-reward">${bonus}</span>`;
+    streakEl.appendChild(div);
+  }
+  document.getElementById('daily-subtitle').textContent =
+    d.loginReward ? `Day ${d.streak} login bonus: +${d.loginReward} coins!` : `Login streak: ${d.streak} days`;
+
+  // Challenges
+  const chEl = document.getElementById('daily-challenges');
+  chEl.innerHTML = '';
+  for (const c of d.challenges) {
+    const row = document.createElement('div');
+    row.className = 'daily-row' + (c.done ? ' done' : '');
+    row.innerHTML = `<span class="daily-desc">${c.desc} (${Math.min(c.progress,c.target)}/${c.target})</span><span class="daily-reward">+${c.reward}</span>${c.done ? '<span class="daily-check">\u2714</span>' : ''}`;
+    chEl.appendChild(row);
+  }
+  // Chest button if all done
+  if (d.chestAvail) {
+    const btn = document.createElement('button');
+    btn.className = 'share-btn'; btn.style.marginTop = '12px';
+    btn.textContent = '\u{1F381} OPEN REWARD CHEST';
+    btn.onclick = () => { document.getElementById('daily-screen').classList.remove('active'); showChest(); };
+    chEl.appendChild(btn);
+  }
+  document.getElementById('daily-screen').classList.add('active');
+}
+
+function showChest() {
+  document.getElementById('chest-screen').classList.add('active');
+  document.getElementById('chest-result').classList.remove('show');
+  document.getElementById('chest-box').textContent = '\u{1F381}';
+  document.getElementById('chest-box').classList.remove('opened');
+  document.getElementById('chest-hint').textContent = 'Tap to open!';
+}
+
+function doOpenChest() {
+  const box = document.getElementById('chest-box');
+  if (box.classList.contains('opened')) return;
+  box.classList.add('opened');
+  box.textContent = '\u2728';
+  document.getElementById('chest-hint').textContent = '';
+  vib([50,30,50,30,100]);
+  screenFlash('rgba(255,255,100,0.3)', 400);
+  const reward = openChest();
+  setTimeout(() => {
+    document.getElementById('chest-reward-text').textContent = reward.text;
+    document.getElementById('chest-reward-desc').textContent = reward.desc;
+    document.getElementById('chest-result').classList.add('show');
+  }, 600);
+}
+
 // ---- Character Definitions ----
 const CHARACTERS = [
   { id:'blue',  name:'Azure',    color:'#5599ee', accent:'#aaddff', scarf:'#ff6688', shape:'round', cost:0,    desc:'The original hero', unlockLevel:0 },
@@ -803,7 +1052,7 @@ function showRanking() {
 
 function goHome() {
   // Hide all screens, show title
-  ['gameover-screen','victory-screen','stage-clear','pause-screen','ranking-screen','shop-screen','levelup-screen','stage-intro','boss-hp-container'].forEach(id => {
+  ['gameover-screen','victory-screen','stage-clear','pause-screen','ranking-screen','shop-screen','daily-screen','chest-screen','levelup-screen','stage-intro','boss-hp-container'].forEach(id => {
     document.getElementById(id).classList.remove('active');
   });
   document.getElementById('title-screen').classList.remove('hidden');
@@ -1271,6 +1520,9 @@ class Game {
       document.getElementById('next-stage-btn').textContent = 'NEXT STAGE';
     }
     document.getElementById('stage-clear').classList.add('active');
+    DailySystem.updateProgress('stage', this.stageDef.id);
+    DailySystem.updateProgress('kills', this.totalKills);
+    DailySystem.updateProgress('combo', this.maxCombo);
   }
 
   // ---- ULTIMATE ABILITY ----
@@ -1279,6 +1531,8 @@ class Game {
     if (!p.ultReady || this.state !== 'playing') return;
     p.sp = 0;
     p.ultReady = false;
+    this.ultCount = (this.ultCount||0) + 1;
+    DailySystem.updateProgress('ults', this.ultCount);
     p.invincible = 2.0; // invincible during ult
 
     // Slow-mo for dramatic effect
@@ -1344,6 +1598,12 @@ class Game {
     document.getElementById('victory-stats').innerHTML =
       `All stages cleared!<br>Total Kills: ${this.totalKills}<br>Total Time: ${this.formatTime(this.time)}<br>Final Level: ${this.player.level}<br>Max Combo: ${this.maxCombo}<br><span style="color:#ffdd00;font-size:28px;font-family:Orbitron,sans-serif">SCORE: ${score}</span><br><span style="color:#ffaa00">+${coinReward} coins</span> | <span style="color:#44ddff">+${xpReward} XP</span><br><span style="color:#888">User Lv.${updatedProf.userLevel}</span>`;
     document.getElementById('victory-screen').classList.add('active');
+    DailySystem.updateProgress('kills', this.totalKills);
+    DailySystem.updateProgress('combo', this.maxCombo);
+    DailySystem.updateProgress('time', Math.floor(this.time));
+    DailySystem.updateProgress('level', this.player.level);
+    DailySystem.updateProgress('stage', 5);
+    DailySystem.updateProgress('score', calcScore(this));
   }
 
   formatTime(t) { return `${Math.floor(t/60)}:${Math.floor(t%60).toString().padStart(2,'0')}`; }
@@ -1813,6 +2073,12 @@ class Game {
     document.getElementById('gameover-stats').innerHTML =
       `Stage: ${this.stageDef.name}<br>Time: ${this.formatTime(this.time)}<br>Level: ${this.player.level}<br>Kills: ${this.totalKills}<br>Max Combo: ${this.maxCombo}<br><span style="color:#ffdd00;font-size:24px;font-family:Orbitron,sans-serif">SCORE: ${score}</span><br><span style="color:#ffaa00">+${coinReward} coins</span> | <span style="color:#44ddff">+${xpReward} XP</span><br><span style="color:#888;font-size:12px">User Lv.${updatedProf.userLevel}</span>`;
     document.getElementById('gameover-screen').classList.add('active');
+    // Update daily challenges
+    DailySystem.updateProgress('kills', this.totalKills);
+    DailySystem.updateProgress('combo', this.maxCombo);
+    DailySystem.updateProgress('time', Math.floor(this.time));
+    DailySystem.updateProgress('level', this.player.level);
+    DailySystem.updateProgress('score', calcScore(this));
   }
 
   // ---- Main Update ----
@@ -2660,6 +2926,14 @@ document.getElementById('name-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') document.getElementById('name-submit').click();
 });
 checkUser();
+// Auto-show daily on first visit of the day
+setTimeout(() => {
+  const d = DailySystem.getData();
+  const today = DailySystem.getToday();
+  if (d.lastLogin !== today && Storage.getUser()) {
+    showDailyScreen();
+  }
+}, 500);
 
 // ---- Buttons ----
 document.getElementById('start-btn').onclick = () => { game=new Game(); game.start(); };
@@ -2673,6 +2947,11 @@ document.getElementById('next-stage-btn').onclick = () => {
 document.getElementById('go-home-btn').onclick = goHome;
 document.getElementById('vic-home-btn').onclick = goHome;
 document.getElementById('pause-home').onclick = goHome;
+// Daily
+document.getElementById('btn-daily').onclick = showDailyScreen;
+document.getElementById('daily-close').onclick = () => { document.getElementById('daily-screen').classList.remove('active'); updateTitleScreen(); };
+document.getElementById('chest-box').onclick = doOpenChest;
+document.getElementById('chest-close').onclick = () => { document.getElementById('chest-screen').classList.remove('active'); updateTitleScreen(); };
 // Shop
 document.getElementById('btn-shop').onclick = showShop;
 document.getElementById('shop-close').onclick = () => { document.getElementById('shop-screen').classList.remove('active'); updateTitleScreen(); };
