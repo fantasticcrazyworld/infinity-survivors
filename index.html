@@ -486,6 +486,57 @@ canvas { display: block; }
   cursor: pointer; font-family: 'Orbitron', sans-serif; transition: all 0.2s;
 }
 .title-sub-btn:hover { color: #fff; border-color: #888; }
+
+/* SP Gauge */
+#sp-bar-container {
+  position: fixed; bottom: 96px; left: 50%; transform: translateX(-50%);
+  width: 180px; max-width: 50vw; height: 10px;
+  background: rgba(0,0,0,0.6); border: 1px solid #555;
+  border-radius: 5px; overflow: hidden; z-index: 20;
+}
+#sp-bar {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, #ff00ff, #ffdd00);
+  transition: width 0.3s; border-radius: 4px;
+}
+#sp-bar.ready {
+  background: linear-gradient(90deg, #ffdd00, #ff8800, #ffdd00);
+  animation: spReady 0.5s ease-in-out infinite alternate;
+}
+@keyframes spReady {
+  from { box-shadow: 0 0 5px #ffdd00; }
+  to { box-shadow: 0 0 15px #ffdd00, 0 0 30px #ff880066; }
+}
+#sp-label {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  font-size: 8px; font-family: 'Orbitron', sans-serif;
+  color: #fff; font-weight: 700; text-shadow: 0 0 3px #000;
+  pointer-events: none;
+}
+#ultimate-btn {
+  position: fixed; bottom: 100px; right: 15px;
+  width: 56px; height: 56px; border-radius: 50%;
+  background: radial-gradient(circle, #ffdd00, #ff8800);
+  border: 3px solid #fff; color: #111;
+  font-size: 11px; font-weight: 900; font-family: 'Orbitron', sans-serif;
+  cursor: pointer; z-index: 21;
+  display: none; transition: all 0.2s;
+  box-shadow: 0 0 20px #ffdd0066;
+  animation: ultPulse 0.8s ease-in-out infinite alternate;
+}
+#ultimate-btn:active { transform: scale(0.9); }
+@keyframes ultPulse {
+  from { box-shadow: 0 0 10px #ffdd0044; }
+  to { box-shadow: 0 0 30px #ffdd00aa, 0 0 50px #ff880044; }
+}
+#ultimate-btn.hidden { display: none; }
+#sp-hint {
+  position: fixed; bottom: 108px; left: 50%; transform: translateX(-50%);
+  font-size: 10px; color: #ffdd00; font-family: 'Orbitron', sans-serif;
+  z-index: 20; pointer-events: none; opacity: 0; transition: opacity 0.3s;
+  text-shadow: 0 0 8px #ffdd0044;
+}
+#sp-hint.show { opacity: 1; animation: pulse 0.5s ease-in-out infinite alternate; }
 </style>
 </head>
 <body>
@@ -505,6 +556,12 @@ canvas { display: block; }
   <div id="boss-name"></div>
   <div id="boss-hp-bar-outer"><div id="boss-hp-bar"></div></div>
 </div>
+<div id="sp-bar-container">
+  <div id="sp-bar"></div>
+  <div id="sp-label">SP</div>
+</div>
+<div id="sp-hint">SPACE to unleash!</div>
+<button id="ultimate-btn">ULT</button>
 <div id="weapon-inventory"></div>
 <div id="hp-bar-container">
   <div id="hp-bar"></div>
@@ -891,7 +948,8 @@ class Game {
       hp: 100, maxHp: 100, speed: 150,
       xp: 0, level: 1, xpToNext: 10,
       weapons: {}, passives: { speed:0, maxHp:0, magnet:0, cooldown:0 },
-      invincible: 0, pickupRange: 50, facing: 0, bobTimer: 0
+      invincible: 0, pickupRange: 50, facing: 0, bobTimer: 0,
+      sp: 0, spMax: 100, ultReady: false
     };
     this.addWeapon('magicBullet');
     this.enemies = []; this.projectiles = []; this.particles = [];
@@ -1072,6 +1130,66 @@ class Game {
       document.getElementById('next-stage-btn').textContent = 'NEXT STAGE';
     }
     document.getElementById('stage-clear').classList.add('active');
+  }
+
+  // ---- ULTIMATE ABILITY ----
+  fireUltimate() {
+    const p = this.player;
+    if (!p.ultReady || this.state !== 'playing') return;
+    p.sp = 0;
+    p.ultReady = false;
+    p.invincible = 2.0; // invincible during ult
+
+    // Slow-mo for dramatic effect
+    this.slowmo = 1.5;
+
+    audio.play('explosion', 0.6);
+    vib([50,30,50,30,200]);
+    screenFlash('rgba(255,255,100,0.5)', 600);
+
+    // 3 waves of damage, each more powerful
+    const waves = [
+      { delay: 0,   range: 200, dmg: 80,  color: '#ffdd00' },
+      { delay: 300, range: 350, dmg: 120, color: '#ff8800' },
+      { delay: 600, range: 500, dmg: 200, color: '#ff4400' },
+    ];
+
+    for (const wave of waves) {
+      setTimeout(() => {
+        if (this.state !== 'playing' && this.state !== 'paused') return;
+        // Damage all enemies in range
+        for (const e of [...this.enemies]) {
+          if (dist(e, p) < wave.range) {
+            this.damageEnemy(e, wave.dmg);
+          }
+        }
+        // Expanding ring particles
+        for (let i = 0; i < 36; i++) {
+          const a = (i / 36) * Math.PI * 2;
+          addParticle(this.particles, {
+            x: p.x + Math.cos(a) * wave.range * 0.3,
+            y: p.y + Math.sin(a) * wave.range * 0.3,
+            vx: Math.cos(a) * wave.range * 2,
+            vy: Math.sin(a) * wave.range * 2,
+            life: 0.5, maxLife: 0.5,
+            size: rand(4, 10), color: wave.color
+          });
+        }
+        // Center burst
+        for (let i = 0; i < 20; i++) {
+          const a = rand(0, Math.PI * 2), spd = rand(100, 400);
+          addParticle(this.particles, {
+            x: p.x, y: p.y,
+            vx: Math.cos(a) * spd, vy: Math.sin(a) * spd,
+            life: rand(0.3, 0.8), maxLife: 0.8,
+            size: rand(3, 8), color: '#ffffff'
+          });
+        }
+        screenFlash(`${wave.color}33`, 200);
+        audio.play('explosion', 0.3);
+        vib(40);
+      }, wave.delay);
+    }
   }
 
   showVictory() {
@@ -1273,6 +1391,15 @@ class Game {
     this.comboFrozen = false; // unfreeze on first kill
     this.combo++;
     this.comboTimer = 2.0; // 2 sec to keep combo
+
+    // SP gauge charge (more SP from combos)
+    const spGain = 3 + Math.min(this.combo * 0.5, 10) + (e.isBoss ? 30 : 0);
+    this.player.sp = Math.min(this.player.sp + spGain, this.player.spMax);
+    if (this.player.sp >= this.player.spMax && !this.player.ultReady) {
+      this.player.ultReady = true;
+      this.showAnnouncement('ULTIMATE READY!', '#ffdd00', 30);
+      vib([30,20,30,20,60]);
+    }
     if (this.combo > this.maxCombo) this.maxCombo = this.combo;
 
     // Combo milestones
@@ -1587,6 +1714,16 @@ class Game {
       slot.className='weapon-slot'; slot.innerHTML=`${def.icon}<span class="wlvl">${w.level}</span>`;
       inv.appendChild(slot);
     }
+
+    // SP gauge
+    const spPct = (p.sp / p.spMax * 100);
+    const spBar = document.getElementById('sp-bar');
+    spBar.style.width = spPct + '%';
+    if (p.ultReady) { spBar.classList.add('ready'); } else { spBar.classList.remove('ready'); }
+    const spHint = document.getElementById('sp-hint');
+    if (p.ultReady) { spHint.classList.add('show'); } else { spHint.classList.remove('show'); }
+    const ultBtn = document.getElementById('ultimate-btn');
+    if (p.ultReady && isMobile) { ultBtn.style.display = 'block'; } else { ultBtn.style.display = 'none'; }
   }
 
   // ---- RENDER ----
@@ -2165,6 +2302,10 @@ window.addEventListener('resize', resize); resize();
 window.addEventListener('keydown', e=>{
   if(!game) return;
   game.keys[e.code]=true;
+  if(e.code==='Space') {
+    e.preventDefault();
+    if(game.state==='playing') game.fireUltimate();
+  }
   if(e.code==='Escape') {
     if(game.state==='playing') {
       game.state='paused';
@@ -2249,6 +2390,8 @@ document.getElementById('pause-resume').onclick = () => {
   document.getElementById('pause-screen').classList.remove('active');
   if (game) game.state = 'playing';
 };
+// Ultimate button (mobile)
+document.getElementById('ultimate-btn').onclick = () => { if(game && game.state==='playing') game.fireUltimate(); };
 // Share buttons
 document.getElementById('share-x-go').onclick = () => shareToX('gameover');
 document.getElementById('share-copy-go').onclick = () => copyResult('gameover');
