@@ -1036,6 +1036,7 @@ class Game {
     this.player = null;
     this.enemies = []; this.projectiles = []; this.particles = [];
     this.xpGems = []; this.damageNumbers = []; this.envParticles = [];
+    this.enemyBullets = [];
     this.camera = { x:0, y:0, shake:0 };
     this.keys = {};
     this.touch = { active:false, dx:0, dy:0, sx:0, sy:0 };
@@ -1071,7 +1072,7 @@ class Game {
     this.addWeapon('magicBullet');
     this.enemies = []; this.projectiles = []; this.particles = [];
     this.xpGems = []; this.damageNumbers = []; this.envParticles = [];
-    this.trails = [];
+    this.enemyBullets = []; this.trails = [];
     this.time = 0; this.kills = 0; this.totalKills = 0;
     this.camera.shake = 0;
     this.combo = 0; this.comboTimer = 0; this.maxCombo = 0; this.comboFrozen = false;
@@ -1093,6 +1094,7 @@ class Game {
     this.enemies = [];
     this.projectiles = [];
     this.xpGems = [];
+    this.enemyBullets = [];
     this.spawnTimer = 0;
     // Freeze combo timer until first kill in new stage
     this.comboFrozen = true;
@@ -1395,18 +1397,70 @@ class Game {
       if (e.hitFlash > 0) e.hitFlash -= dt;
       if (e.isBoss) e.phaseTimer = (e.phaseTimer||0) + dt;
 
+      // Enemy shooting
+      if (!e.shootTimer) e.shootTimer = rand(1, 3);
+      e.shootTimer -= dt;
+      if (e.shootTimer <= 0) {
+        const d2 = dist(e, p);
+        if (e.isBoss && d2 < 600) {
+          // Boss: 3-way shot
+          e.shootTimer = 1.5;
+          for (let s = -1; s <= 1; s++) {
+            const sa = a + s * 0.3;
+            this.enemyBullets.push({ x:e.x, y:e.y, vx:Math.cos(sa)*180, vy:Math.sin(sa)*180, dmg:e.dmg*0.5, size:6, life:3, color:e.accent||'#ff4444' });
+          }
+        } else if (e.type === 'wraith' && d2 < 400) {
+          // Wraith: single aimed shot
+          e.shootTimer = 2.0;
+          this.enemyBullets.push({ x:e.x, y:e.y, vx:Math.cos(a)*150, vy:Math.sin(a)*150, dmg:e.dmg*0.6, size:5, life:2.5, color:'#ff6666' });
+        } else if (e.type === 'golem' && d2 < 300) {
+          // Golem: slow heavy shot
+          e.shootTimer = 3.0;
+          this.enemyBullets.push({ x:e.x, y:e.y, vx:Math.cos(a)*100, vy:Math.sin(a)*100, dmg:e.dmg*0.8, size:8, life:3, color:'#ffaa44' });
+        } else {
+          e.shootTimer = rand(2, 4);
+        }
+      }
+
+      // Contact damage
       const d = dist(e, p);
       if (d < e.size+12 && p.invincible <= 0) {
-        p.hp -= e.dmg;
-        p.invincible = 0.5;
-        audio.play('playerHit', 0.4);
-        vib(50); // player hit
-        this.combo = 0; this.comboTimer = 0; // reset combo on damage
-        this.spawnDmgNum(p.x, p.y-20, Math.round(e.dmg), '#ff4444');
-        screenFlash('rgba(255,0,0,0.15)', 200);
-        if (p.hp <= 0) { p.hp = 0; this.gameOver(); return; }
+        this.playerTakeDamage(e.dmg);
+        if (p.hp <= 0) return;
       }
       if (d > 1200 && !e.isBoss) this.enemies.splice(i, 1);
+    }
+
+    // Update enemy bullets
+    this.updateEnemyBullets(dt);
+  }
+
+  playerTakeDamage(dmg) {
+    const p = this.player;
+    if (p.invincible > 0) return;
+    p.hp -= dmg;
+    p.invincible = 0.5;
+    audio.play('playerHit', 0.4);
+    vib(50);
+    this.combo = 0; this.comboTimer = 0;
+    this.spawnDmgNum(p.x, p.y-20, Math.round(dmg), '#ff4444');
+    screenFlash('rgba(255,0,0,0.15)', 200);
+    if (p.hp <= 0) { p.hp = 0; this.gameOver(); }
+  }
+
+  updateEnemyBullets(dt) {
+    const p = this.player;
+    for (let i = this.enemyBullets.length-1; i >= 0; i--) {
+      const b = this.enemyBullets[i];
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+      b.life -= dt;
+      if (b.life <= 0) { this.enemyBullets.splice(i, 1); continue; }
+      // Hit player
+      if (dist(b, p) < b.size + 12 && p.invincible <= 0) {
+        this.playerTakeDamage(b.dmg);
+        this.enemyBullets.splice(i, 1);
+      }
     }
   }
 
@@ -1552,7 +1606,7 @@ class Game {
     for (const [threshold, text, color, size] of milestones) {
       if (this.combo === threshold) {
         this.showAnnouncement(text, color, size);
-        this.camZoomTarget = 1.08;
+        // zoom disabled
         setTimeout(() => { if(game) game.camZoomTarget = 1; }, 400);
         vib([40,20,40,20,80]);
         screenFlash(`${color}22`, 300);
@@ -1799,12 +1853,7 @@ class Game {
     // Camera
     this.camera.x = this.player.x - canvas.width / 2 / this.camZoom;
     this.camera.y = this.player.y - canvas.height / 2 / this.camZoom;
-    if (this.camera.shake > 0) {
-      this.camera.x += rand(-this.camera.shake, this.camera.shake);
-      this.camera.y += rand(-this.camera.shake, this.camera.shake);
-      this.camera.shake *= 0.86;
-      if (this.camera.shake < 0.5) this.camera.shake = 0;
-    }
+    // camera shake disabled
     this.updateUI();
     this.updateComboUI();
   }
@@ -1890,6 +1939,7 @@ class Game {
     this.drawPlayer();
     this.drawFireCircle();
     this.drawProjectiles();
+    this.drawEnemyBullets();
     this.drawParticles();
     this.drawDmgNums();
     ctx.restore();
@@ -2388,6 +2438,22 @@ class Game {
         ctx.fillStyle=pr.color; ctx.beginPath(); ctx.arc(0,0,pr.size,0,Math.PI*2); ctx.fill();
         ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(0,0,pr.size*0.4,0,Math.PI*2); ctx.fill();
       }
+      ctx.restore();
+    }
+  }
+
+  drawEnemyBullets() {
+    for (const b of this.enemyBullets) {
+      ctx.save(); ctx.translate(b.x, b.y);
+      // Glow
+      ctx.fillStyle = b.color + '44';
+      ctx.beginPath(); ctx.arc(0, 0, b.size + 3, 0, Math.PI*2); ctx.fill();
+      // Core
+      ctx.fillStyle = b.color;
+      ctx.beginPath(); ctx.arc(0, 0, b.size, 0, Math.PI*2); ctx.fill();
+      // Bright center
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(0, 0, b.size * 0.3, 0, Math.PI*2); ctx.fill();
       ctx.restore();
     }
   }
