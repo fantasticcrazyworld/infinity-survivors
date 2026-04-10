@@ -771,12 +771,12 @@ const Storage = {
 
 // ---- Character Definitions ----
 const CHARACTERS = [
-  { id:'blue',  name:'Azure',    color:'#5599ee', accent:'#aaddff', scarf:'#ff6688', cost:0,    desc:'The original hero', unlockLevel:0 },
-  { id:'green', name:'Jade',     color:'#44bb66', accent:'#88ffaa', scarf:'#ffaa44', cost:100,  desc:'Forest spirit, +10% speed', unlockLevel:0, bonus:{speed:0.10} },
-  { id:'red',   name:'Blaze',    color:'#dd4444', accent:'#ffaa88', scarf:'#ffdd00', cost:200,  desc:'Fire soul, +15% damage', unlockLevel:3, bonus:{dmg:0.15} },
-  { id:'purple',name:'Mystic',   color:'#9944dd', accent:'#ddaaff', scarf:'#44ffdd', cost:300,  desc:'Void walker, +20% SP charge', unlockLevel:5, bonus:{spCharge:0.20} },
-  { id:'gold',  name:'Solar',    color:'#ddaa22', accent:'#ffee88', scarf:'#ff4488', cost:500,  desc:'Sun god, +10% all stats', unlockLevel:8, bonus:{speed:0.05,dmg:0.05,spCharge:0.10} },
-  { id:'dark',  name:'Shadow',   color:'#444466', accent:'#8888aa', scarf:'#ff0044', cost:1000, desc:'Reaper, +25% damage, -10% HP', unlockLevel:12, bonus:{dmg:0.25,hpMul:-0.10} },
+  { id:'blue',  name:'Azure',    color:'#5599ee', accent:'#aaddff', scarf:'#ff6688', shape:'round', cost:0,    desc:'The original hero', unlockLevel:0 },
+  { id:'green', name:'Jade',     color:'#44bb66', accent:'#88ffaa', scarf:'#ffaa44', shape:'fox',   cost:100,  desc:'Swift fox spirit, +10% speed', unlockLevel:0, bonus:{speed:0.10} },
+  { id:'red',   name:'Blaze',    color:'#dd4444', accent:'#ffaa88', scarf:'#ffdd00', shape:'flame', cost:200,  desc:'Living flame, +15% damage', unlockLevel:3, bonus:{dmg:0.15} },
+  { id:'purple',name:'Mystic',   color:'#9944dd', accent:'#ddaaff', scarf:'#44ffdd', shape:'ghost', cost:300,  desc:'Void ghost, +20% SP charge', unlockLevel:5, bonus:{spCharge:0.20} },
+  { id:'gold',  name:'Solar',    color:'#ddaa22', accent:'#ffee88', scarf:'#ff4488', shape:'star',  cost:500,  desc:'Star guardian, +10% all stats', unlockLevel:8, bonus:{speed:0.05,dmg:0.05,spCharge:0.10} },
+  { id:'dark',  name:'Shadow',   color:'#444466', accent:'#8888aa', scarf:'#ff0044', shape:'reaper',cost:1000, desc:'Dark reaper, +25% dmg, -10% HP', unlockLevel:12, bonus:{dmg:0.25,hpMul:-0.10} },
 ];
 
 function calcScore(g) {
@@ -2134,187 +2134,223 @@ class Game {
     ctx.globalAlpha = 1;
   }
 
+  drawPlayerEyes(ex,ey,fa,blink,irisCol) {
+    if (blink) {
+      ctx.strokeStyle='#112';ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(-5+ex,-4+ey,3,Math.PI*0.2,Math.PI*0.8);ctx.stroke();
+      ctx.beginPath();ctx.arc(5+ex,-4+ey,3,Math.PI*0.2,Math.PI*0.8);ctx.stroke();
+    } else {
+      ctx.fillStyle='#fff';
+      ctx.beginPath();ctx.ellipse(-5+ex,-4+ey,5,6,0,0,Math.PI*2);ctx.ellipse(5+ex,-4+ey,5,6,0,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle=irisCol||'#1144aa';
+      ctx.beginPath();ctx.arc(-5+ex+Math.cos(fa)*1.5,-4+ey+Math.sin(fa)*0.5,3.5,0,Math.PI*2);ctx.arc(5+ex+Math.cos(fa)*1.5,-4+ey+Math.sin(fa)*0.5,3.5,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#000';
+      ctx.beginPath();ctx.arc(-5+ex+Math.cos(fa)*2,-4+ey+Math.sin(fa)*0.8,1.8,0,Math.PI*2);ctx.arc(5+ex+Math.cos(fa)*2,-4+ey+Math.sin(fa)*0.8,1.8,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#fff';
+      ctx.beginPath();ctx.arc(-6+ex,-5.5+ey,1.8,0,Math.PI*2);ctx.arc(4+ex,-5.5+ey,1.8,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.arc(-4+ex,-2.5+ey,0.8,0,Math.PI*2);ctx.arc(6+ex,-2.5+ey,0.8,0,Math.PI*2);ctx.fill();
+    }
+  }
+
   drawPlayer() {
     const p = this.player;
     const flash = p.invincible > 0 && Math.sin(p.invincible*30) > 0;
     const bob = Math.sin(p.bobTimer * 3) * 3;
     const fa = p.facing;
-    const dir = Math.cos(fa) >= 0 ? 1 : -1;
-    const blink = Math.sin(p.bobTimer * 0.7) > 0.97; // occasional blink
-    const breathe = Math.sin(p.bobTimer * 2) * 0.04 + 1; // breathing
+    const blink = Math.sin(p.bobTimer * 0.7) > 0.97;
+    const breathe = Math.sin(p.bobTimer * 2) * 0.04 + 1;
+    const ch = game.charDef || CHARACTERS[0];
+    const shape = ch.shape || 'round';
+    const ex = Math.cos(fa)*2, ey = Math.sin(fa)*1;
+    const t = p.bobTimer;
 
     ctx.save(); ctx.translate(p.x, p.y + bob);
 
     if (!flash) {
-      // Magic aura (soft glow) - skip on mobile
-      if (!isMobile) {
-        const aura = ctx.createRadialGradient(0,0,12,0,0,45);
-        aura.addColorStop(0, 'rgba(120,180,255,0.15)');
-        aura.addColorStop(0.5, 'rgba(180,120,255,0.06)');
-        aura.addColorStop(1, 'rgba(120,180,255,0)');
-        ctx.fillStyle = aura;
-        ctx.beginPath(); ctx.arc(0,0,45,0,Math.PI*2); ctx.fill();
-      }
-
       // Shadow
       ctx.fillStyle = 'rgba(0,0,0,0.2)';
       ctx.beginPath(); ctx.ellipse(0,20-bob,18,6,0,0,Math.PI*2); ctx.fill();
 
-      // Scarf / Muffler (behind body)
-      const ch = game.charDef || CHARACTERS[0];
-      const sw = Math.sin(p.bobTimer*4)*4;
-      ctx.fillStyle = ch.scarf;
-      // Left tail
-      ctx.beginPath();
-      ctx.moveTo(-10,-2);
-      ctx.quadraticCurveTo(-18+sw,8,-22+sw*1.5,18);
-      ctx.quadraticCurveTo(-20+sw,20,-16+sw,16);
-      ctx.quadraticCurveTo(-14+sw*0.5,6,-8,0);
-      ctx.closePath(); ctx.fill();
-      // Right tail
-      ctx.beginPath();
-      ctx.moveTo(10,-2);
-      ctx.quadraticCurveTo(16-sw*0.5,10,20-sw,22);
-      ctx.quadraticCurveTo(22-sw,24,18-sw*0.5,20);
-      ctx.quadraticCurveTo(14-sw*0.3,8,8,0);
-      ctx.closePath(); ctx.fill();
-      // Scarf highlight
-      ctx.fillStyle = ch.scarf + '44';
-      ctx.beginPath();
-      ctx.moveTo(-10,-2);
-      ctx.quadraticCurveTo(-16+sw,4,-18+sw*1.2,10);
-      ctx.quadraticCurveTo(-14+sw,6,-8,0);
-      ctx.closePath(); ctx.fill();
+      if (shape === 'round') {
+        // === AZURE - Round fluffy creature with cat ears ===
+        // Scarf behind
+        const sw=Math.sin(t*4)*4;
+        ctx.fillStyle=ch.scarf;
+        ctx.beginPath();ctx.moveTo(-10,-2);ctx.quadraticCurveTo(-18+sw,8,-22+sw*1.5,18);ctx.quadraticCurveTo(-20+sw,20,-16+sw,16);ctx.quadraticCurveTo(-14+sw*0.5,6,-8,0);ctx.closePath();ctx.fill();
+        ctx.beginPath();ctx.moveTo(10,-2);ctx.quadraticCurveTo(16-sw*0.5,10,20-sw,22);ctx.quadraticCurveTo(22-sw,24,18-sw*0.5,20);ctx.quadraticCurveTo(14-sw*0.3,8,8,0);ctx.closePath();ctx.fill();
+        // Body
+        const R=16*breathe;
+        ctx.fillStyle=ch.color;ctx.beginPath();ctx.arc(0,0,R,0,Math.PI*2);ctx.fill();
+        // Scarf front
+        ctx.fillStyle=ch.scarf;ctx.beginPath();ctx.ellipse(0,-R*0.55,R*0.75,5,0,0,Math.PI*2);ctx.fill();
+        // Ears
+        ctx.fillStyle=ch.color;
+        ctx.beginPath();ctx.moveTo(-8,-R*0.7);ctx.quadraticCurveTo(-14,-R*1.5,-4,-R*0.9);ctx.closePath();ctx.fill();
+        ctx.beginPath();ctx.moveTo(8,-R*0.7);ctx.quadraticCurveTo(14,-R*1.5,4,-R*0.9);ctx.closePath();ctx.fill();
+        ctx.fillStyle='#ffaacc';
+        ctx.beginPath();ctx.moveTo(-7,-R*0.75);ctx.quadraticCurveTo(-12,-R*1.35,-5,-R*0.9);ctx.closePath();ctx.fill();
+        ctx.beginPath();ctx.moveTo(7,-R*0.75);ctx.quadraticCurveTo(12,-R*1.35,5,-R*0.9);ctx.closePath();ctx.fill();
+        this.drawPlayerEyes(ex,ey,fa,blink);
+        ctx.strokeStyle='#224';ctx.lineWidth=1.2;ctx.beginPath();ctx.arc(ex*0.5,3+ey*0.3,3,0.1,Math.PI-0.1);ctx.stroke();
+        ctx.fillStyle='rgba(255,100,150,0.25)';ctx.beginPath();ctx.ellipse(-10,0,4,3,0,0,Math.PI*2);ctx.ellipse(10,0,4,3,0,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle=ch.color;ctx.beginPath();ctx.ellipse(-6,R*0.85,4,3,0,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.ellipse(6,R*0.85,4,3,0,0,Math.PI*2);ctx.fill();
 
-      // Round fluffy body
-      const R = 16 * breathe;
-      if (isMobile) {
-        ctx.fillStyle = ch.color;
-      } else {
-        const bodyG = ctx.createRadialGradient(-4,-4,3,0,0,R);
-        bodyG.addColorStop(0, ch.accent);
-        bodyG.addColorStop(0.5, ch.color);
-        bodyG.addColorStop(1, ch.color);
-        ctx.fillStyle = bodyG;
+      } else if (shape === 'fox') {
+        // === JADE - Sleek fox with big tail ===
+        // Big fluffy tail
+        const tw=Math.sin(t*3)*8;
+        ctx.fillStyle=ch.color;
+        ctx.beginPath();ctx.moveTo(-5,5);ctx.quadraticCurveTo(-20+tw,0,-28+tw,-15);ctx.quadraticCurveTo(-22+tw,-25,-15+tw,-12);ctx.quadraticCurveTo(-10+tw*0.5,-5,-3,3);ctx.closePath();ctx.fill();
+        ctx.fillStyle=ch.accent;
+        ctx.beginPath();ctx.moveTo(-18+tw,-12);ctx.quadraticCurveTo(-22+tw,-20,-15+tw,-10);ctx.closePath();ctx.fill();
+        // Body (elongated)
+        ctx.fillStyle=ch.color;
+        ctx.beginPath();ctx.ellipse(0,2,14*breathe,12*breathe,0,0,Math.PI*2);ctx.fill();
+        // Belly
+        ctx.fillStyle=ch.accent;
+        ctx.beginPath();ctx.ellipse(1,4,8,7,0,0,Math.PI*2);ctx.fill();
+        // Head
+        ctx.fillStyle=ch.color;
+        ctx.beginPath();ctx.ellipse(0,-10,11,10,0,0,Math.PI*2);ctx.fill();
+        // Fox ears (tall, pointed)
+        ctx.beginPath();ctx.moveTo(-7,-14);ctx.lineTo(-10,-28);ctx.lineTo(-2,-16);ctx.closePath();ctx.fill();
+        ctx.beginPath();ctx.moveTo(7,-14);ctx.lineTo(10,-28);ctx.lineTo(2,-16);ctx.closePath();ctx.fill();
+        ctx.fillStyle='#ffaacc';
+        ctx.beginPath();ctx.moveTo(-6,-15);ctx.lineTo(-8,-25);ctx.lineTo(-3,-16);ctx.closePath();ctx.fill();
+        ctx.beginPath();ctx.moveTo(6,-15);ctx.lineTo(8,-25);ctx.lineTo(3,-16);ctx.closePath();ctx.fill();
+        // Snout
+        ctx.fillStyle=ch.accent;
+        ctx.beginPath();ctx.ellipse(ex*0.5,-6,4,3,0,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#333';ctx.beginPath();ctx.arc(ex*0.5,-7,1.5,0,Math.PI*2);ctx.fill();
+        this.drawPlayerEyes(ex,ey-6,fa,blink,'#22aa44');
+        // Legs
+        ctx.fillStyle=ch.color;
+        ctx.fillRect(-9,10,5,8);ctx.fillRect(4,10,5,8);
+        ctx.fillStyle=ch.accent;ctx.fillRect(-9,16,5,3);ctx.fillRect(4,16,5,3);
+
+      } else if (shape === 'flame') {
+        // === BLAZE - Flame elemental ===
+        // Flickering flame body
+        const flicker=Math.sin(t*8)*3;
+        const flicker2=Math.cos(t*6)*2;
+        ctx.fillStyle=ch.color;
+        ctx.beginPath();
+        ctx.moveTo(0,-22-flicker);
+        ctx.quadraticCurveTo(14+flicker2,-10,16,5);
+        ctx.quadraticCurveTo(12,16,6,16);
+        ctx.quadraticCurveTo(3,18,0,16);
+        ctx.quadraticCurveTo(-3,18,-6,16);
+        ctx.quadraticCurveTo(-12,16,-16,5);
+        ctx.quadraticCurveTo(-14+flicker2,-10,0,-22-flicker);
+        ctx.fill();
+        // Inner flame
+        ctx.fillStyle=ch.accent;
+        ctx.beginPath();
+        ctx.moveTo(0,-16-flicker*0.5);
+        ctx.quadraticCurveTo(8,-6,10,4);
+        ctx.quadraticCurveTo(6,12,0,12);
+        ctx.quadraticCurveTo(-6,12,-10,4);
+        ctx.quadraticCurveTo(-8,-6,0,-16-flicker*0.5);
+        ctx.fill();
+        // Core
+        ctx.fillStyle='#fff8';
+        ctx.beginPath();ctx.ellipse(0,2,5,6,0,0,Math.PI*2);ctx.fill();
+        // Eyes (angry)
+        this.drawPlayerEyes(ex,ey+2,fa,blink,'#ff4400');
+        // Mouth
+        ctx.strokeStyle='#ff880088';ctx.lineWidth=1.5;
+        ctx.beginPath();ctx.arc(ex*0.3,7,3,0.3,Math.PI-0.3);ctx.stroke();
+
+      } else if (shape === 'ghost') {
+        // === MYSTIC - Floating ghost with flowing tail ===
+        const wave=Math.sin(t*3)*3;
+        // Flowing bottom
+        ctx.fillStyle=ch.color+'88';
+        ctx.beginPath();ctx.moveTo(-14,5);
+        for(let i=0;i<=8;i++){ctx.lineTo(-14+(28/8)*i, 18+Math.sin(i*1.5+t*4)*5);}
+        ctx.lineTo(14,5);ctx.closePath();ctx.fill();
+        // Main body (oval, translucent)
+        ctx.fillStyle=ch.color+'cc';
+        ctx.beginPath();ctx.ellipse(0,-2,14*breathe,16*breathe,0,0,Math.PI*2);ctx.fill();
+        // Inner glow
+        ctx.fillStyle=ch.accent+'44';
+        ctx.beginPath();ctx.ellipse(-2,-5,8,10,0,0,Math.PI*2);ctx.fill();
+        // Little horn
+        ctx.fillStyle=ch.scarf;
+        ctx.beginPath();ctx.moveTo(-2,-16);ctx.lineTo(0,-24-wave);ctx.lineTo(2,-16);ctx.closePath();ctx.fill();
+        // Eyes (glowing)
+        this.drawPlayerEyes(ex,ey-2,fa,blink,ch.color);
+        // Ghost mouth (o shape)
+        ctx.fillStyle='#0004';ctx.beginPath();ctx.ellipse(ex*0.3,5,3,4,0,0,Math.PI*2);ctx.fill();
+        // Wispy arms
+        ctx.strokeStyle=ch.color+'66';ctx.lineWidth=2;
+        ctx.beginPath();ctx.moveTo(-12,0);ctx.quadraticCurveTo(-20+wave,-5,-18+wave,5);ctx.stroke();
+        ctx.beginPath();ctx.moveTo(12,0);ctx.quadraticCurveTo(20-wave,-5,18-wave,5);ctx.stroke();
+
+      } else if (shape === 'star') {
+        // === SOLAR - Star-shaped guardian ===
+        const rot=t*0.5;
+        const pulse=Math.sin(t*3)*2;
+        // Outer glow
+        ctx.fillStyle=ch.color+'22';ctx.beginPath();ctx.arc(0,0,28+pulse,0,Math.PI*2);ctx.fill();
+        // Star body
+        ctx.fillStyle=ch.color;ctx.beginPath();
+        for(let i=0;i<10;i++){const a2=rot+(i/10)*Math.PI*2;const r2=i%2===0?18+pulse:10;ctx.lineTo(Math.cos(a2)*r2,Math.sin(a2)*r2);}
+        ctx.closePath();ctx.fill();
+        // Inner star
+        ctx.fillStyle=ch.accent;ctx.beginPath();
+        for(let i=0;i<10;i++){const a2=rot+(i/10)*Math.PI*2;const r2=i%2===0?12+pulse*0.5:7;ctx.lineTo(Math.cos(a2)*r2,Math.sin(a2)*r2);}
+        ctx.closePath();ctx.fill();
+        // Face circle
+        ctx.fillStyle='#fff4';ctx.beginPath();ctx.arc(0,-1,8,0,Math.PI*2);ctx.fill();
+        this.drawPlayerEyes(ex,ey-1,fa,blink,'#ddaa00');
+        ctx.strokeStyle='#aa880088';ctx.lineWidth=1;ctx.beginPath();ctx.arc(ex*0.3,3,2.5,0.2,Math.PI-0.2);ctx.stroke();
+        // Crown
+        ctx.fillStyle=ch.scarf;
+        ctx.beginPath();ctx.moveTo(-5,-12);ctx.lineTo(-3,-18-pulse);ctx.lineTo(-1,-14);ctx.lineTo(1,-19-pulse);ctx.lineTo(3,-14);ctx.lineTo(5,-12);ctx.closePath();ctx.fill();
+
+      } else if (shape === 'reaper') {
+        // === SHADOW - Hooded reaper figure ===
+        const sw2=Math.sin(t*3)*3;
+        // Tattered cloak
+        ctx.fillStyle=ch.color;
+        ctx.beginPath();ctx.moveTo(-14,-8);
+        ctx.quadraticCurveTo(-16,5,-12,18);
+        for(let i=0;i<6;i++){ctx.lineTo(-12+(24/5)*i, 18+Math.sin(i*2+t*5)*4+(i%2)*3);}
+        ctx.quadraticCurveTo(16,5,14,-8);
+        ctx.quadraticCurveTo(8,-20,0,-18);
+        ctx.quadraticCurveTo(-8,-20,-14,-8);
+        ctx.closePath();ctx.fill();
+        // Hood
+        ctx.fillStyle='#333';
+        ctx.beginPath();ctx.ellipse(0,-10,12,10,0,Math.PI,Math.PI*2);ctx.fill();
+        ctx.fillStyle=ch.color;
+        ctx.beginPath();ctx.ellipse(0,-8,10,8,0,Math.PI,Math.PI*2);ctx.fill();
+        // Dark face void
+        ctx.fillStyle='#000';ctx.beginPath();ctx.ellipse(0,-4,7,6,0,0,Math.PI*2);ctx.fill();
+        // Glowing eyes (red, no whites)
+        ctx.fillStyle=ch.scarf;
+        ctx.beginPath();ctx.ellipse(-4+ex,-5+ey,2.5,1.5,-0.1,0,Math.PI*2);ctx.fill();
+        ctx.beginPath();ctx.ellipse(4+ex,-5+ey,2.5,1.5,0.1,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(-4.5+ex,-5.5+ey,0.7,0,Math.PI*2);ctx.arc(3.5+ex,-5.5+ey,0.7,0,Math.PI*2);ctx.fill();
+        // Scythe
+        ctx.save();ctx.translate(12,0);ctx.rotate(0.2+Math.sin(t*2)*0.1);
+        ctx.strokeStyle='#666';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(0,15);ctx.lineTo(0,-15);ctx.stroke();
+        ctx.fillStyle='#aaa';ctx.beginPath();ctx.moveTo(0,-15);ctx.quadraticCurveTo(12,-18,14,-10);ctx.quadraticCurveTo(10,-8,0,-10);ctx.closePath();ctx.fill();
+        ctx.restore();
       }
-      ctx.beginPath(); ctx.arc(0,0,R,0,Math.PI*2); ctx.fill();
 
-      // Fluffy texture (lighter patches)
-      ctx.fillStyle = 'rgba(200,230,255,0.2)';
-      ctx.beginPath(); ctx.ellipse(-5,-6,8,5,-0.3,0,Math.PI*2); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(6,3,5,4,0.5,0,Math.PI*2); ctx.fill();
-
-      // Scarf wrap (front)
-      ctx.fillStyle = ch.scarf;
-      ctx.beginPath();
-      ctx.ellipse(0,-R*0.55,R*0.75,5,0,0,Math.PI*2);
-      ctx.fill();
-      ctx.fillStyle = ch.scarf + 'aa';
-      ctx.beginPath();
-      ctx.ellipse(0,-R*0.55,R*0.75,3,-0.1,Math.PI,Math.PI*2);
-      ctx.fill();
-
-      // Ears (pointy cat-like)
-      // Left ear
-      ctx.fillStyle = ch.color;
-      ctx.beginPath();
-      ctx.moveTo(-8,-R*0.7);
-      ctx.quadraticCurveTo(-14,-R*1.5,-4,-R*0.9);
-      ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#ffaacc';
-      ctx.beginPath();
-      ctx.moveTo(-7,-R*0.75);
-      ctx.quadraticCurveTo(-12,-R*1.35,-5,-R*0.9);
-      ctx.closePath(); ctx.fill();
-      // Right ear
-      ctx.fillStyle = '#4499ee';
-      ctx.beginPath();
-      ctx.moveTo(8,-R*0.7);
-      ctx.quadraticCurveTo(14,-R*1.5,4,-R*0.9);
-      ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#ffaacc';
-      ctx.beginPath();
-      ctx.moveTo(7,-R*0.75);
-      ctx.quadraticCurveTo(12,-R*1.35,5,-R*0.9);
-      ctx.closePath(); ctx.fill();
-
-      // Eyes
-      const ex = Math.cos(fa)*2;
-      const ey = Math.sin(fa)*1;
-      if (blink) {
-        // Blinking - happy lines
-        ctx.strokeStyle = '#112';
-        ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.arc(-5+ex,-4+ey,3,Math.PI*0.2,Math.PI*0.8); ctx.stroke();
-        ctx.beginPath(); ctx.arc(5+ex,-4+ey,3,Math.PI*0.2,Math.PI*0.8); ctx.stroke();
-      } else {
-        // Big sparkly eyes
-        // White
-        ctx.fillStyle = '#fff';
-        ctx.beginPath();
-        ctx.ellipse(-5+ex,-4+ey,5,6,0,0,Math.PI*2);
-        ctx.ellipse(5+ex,-4+ey,5,6,0,0,Math.PI*2);
-        ctx.fill();
-        // Iris
-        ctx.fillStyle = '#1144aa';
-        ctx.beginPath();
-        ctx.arc(-5+ex+Math.cos(fa)*1.5,-4+ey+Math.sin(fa)*0.5,3.5,0,Math.PI*2);
-        ctx.arc(5+ex+Math.cos(fa)*1.5,-4+ey+Math.sin(fa)*0.5,3.5,0,Math.PI*2);
-        ctx.fill();
-        // Pupil
-        ctx.fillStyle = '#000';
-        ctx.beginPath();
-        ctx.arc(-5+ex+Math.cos(fa)*2,-4+ey+Math.sin(fa)*0.8,1.8,0,Math.PI*2);
-        ctx.arc(5+ex+Math.cos(fa)*2,-4+ey+Math.sin(fa)*0.8,1.8,0,Math.PI*2);
-        ctx.fill();
-        // Sparkle (big)
-        ctx.fillStyle = '#fff';
-        ctx.beginPath();
-        ctx.arc(-6+ex,-5.5+ey,1.8,0,Math.PI*2);
-        ctx.arc(4+ex,-5.5+ey,1.8,0,Math.PI*2);
-        ctx.fill();
-        // Sparkle (small)
-        ctx.beginPath();
-        ctx.arc(-4+ex,-2.5+ey,0.8,0,Math.PI*2);
-        ctx.arc(6+ex,-2.5+ey,0.8,0,Math.PI*2);
-        ctx.fill();
-      }
-
-      // Cute mouth
-      ctx.strokeStyle = '#224';
-      ctx.lineWidth = 1.2;
-      ctx.beginPath();
-      ctx.arc(0+ex*0.5, 3+ey*0.3, 3, 0.1, Math.PI-0.1);
-      ctx.stroke();
-
-      // Blush cheeks
-      ctx.fillStyle = 'rgba(255,100,150,0.25)';
-      ctx.beginPath();
-      ctx.ellipse(-10, 0, 4, 3, 0, 0, Math.PI*2);
-      ctx.ellipse(10, 0, 4, 3, 0, 0, Math.PI*2);
-      ctx.fill();
-
-      // Small feet at bottom
-      ctx.fillStyle = ch.color;
-      ctx.beginPath(); ctx.ellipse(-6,R*0.85,4,3,0,0,Math.PI*2); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(6,R*0.85,4,3,0,0,Math.PI*2); ctx.fill();
-
-      // Magic sparkles around character
-      const sparkTime = p.bobTimer * 2;
+      // Magic sparkles (all shapes)
+      const sparkTime = t * 2;
       for (let i = 0; i < 4; i++) {
-        const sa = sparkTime + i * Math.PI * 0.5;
-        const sr = 22 + Math.sin(sparkTime*2+i)*5;
-        const sx = Math.cos(sa) * sr;
-        const sy = Math.sin(sa) * sr * 0.6 - 5;
-        const ss = (Math.sin(sparkTime*3+i*2)*0.5+0.5) * 2.5;
-        if (ss > 0.5) {
-          ctx.fillStyle = `rgba(255,255,200,${ss/2.5*0.6})`;
-          // Star shape
-          ctx.save(); ctx.translate(sx,sy); ctx.rotate(sparkTime+i);
-          ctx.beginPath();
-          for(let j=0;j<4;j++){const a2=(j/4)*Math.PI*2;ctx.moveTo(0,0);ctx.lineTo(Math.cos(a2)*ss,Math.sin(a2)*ss);ctx.lineTo(Math.cos(a2+0.3)*ss*0.3,Math.sin(a2+0.3)*ss*0.3);}
-          ctx.fill();
-          ctx.restore();
+        const sa=sparkTime+i*Math.PI*0.5, sr=22+Math.sin(sparkTime*2+i)*5;
+        const sx2=Math.cos(sa)*sr, sy2=Math.sin(sa)*sr*0.6-5;
+        const ss=(Math.sin(sparkTime*3+i*2)*0.5+0.5)*2.5;
+        if(ss>0.5){
+          ctx.fillStyle=`rgba(255,255,200,${ss/2.5*0.6})`;
+          ctx.save();ctx.translate(sx2,sy2);ctx.rotate(sparkTime+i);
+          ctx.beginPath();for(let j=0;j<4;j++){const a2=(j/4)*Math.PI*2;ctx.moveTo(0,0);ctx.lineTo(Math.cos(a2)*ss,Math.sin(a2)*ss);ctx.lineTo(Math.cos(a2+0.3)*ss*0.3,Math.sin(a2+0.3)*ss*0.3);}
+          ctx.fill();ctx.restore();
         }
       }
     }
