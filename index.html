@@ -1105,6 +1105,9 @@ class Game {
     this.player.x = WORLD_SIZE/2;
     this.player.y = WORLD_SIZE/2;
 
+    // Pre-render background to offscreen canvas (huge perf win)
+    this.buildBgCache();
+
     // Spawn env particles
     this.envParticles = [];
     const envCount = isMobile ? 15 : 40;
@@ -1962,143 +1965,76 @@ class Game {
     }
   }
 
-  drawBg() {
-    const s = this.stageDef, cam = this.camera;
-    const sx = Math.floor(cam.x/TILE)*TILE, sy = Math.floor(cam.y/TILE)*TILE;
-    const ex = sx+canvas.width+TILE*2, ey = sy+canvas.height+TILE*2;
+  buildBgCache() {
+    // Render entire background ONCE to offscreen canvas
+    const oc = document.createElement('canvas');
+    oc.width = WORLD_SIZE; oc.height = WORLD_SIZE;
+    const c = oc.getContext('2d');
+    const s = this.stageDef;
+    const stageId = s.id;
 
     // Base fill
-    ctx.fillStyle = s.bg;
-    ctx.fillRect(sx, sy, ex-sx, ey-sy);
+    c.fillStyle = s.bg;
+    c.fillRect(0, 0, WORLD_SIZE, WORLD_SIZE);
 
-    // Stage-specific ground patterns
-    const stageId = s.id;
-    for (let x=sx;x<ex;x+=TILE) for(let y=sy;y<ey;y+=TILE) {
+    for (let x=0;x<WORLD_SIZE;x+=TILE) for(let y=0;y<WORLD_SIZE;y+=TILE) {
       const hash = ((x*73+y*137)&0xff)/255;
       const hash2 = ((x*41+y*97)&0xff)/255;
 
       if (stageId === 1) {
-        // DARK FOREST - trees, grass patches, mushrooms
-        ctx.strokeStyle = s.grid; ctx.lineWidth = 1;
-        ctx.strokeRect(x,y,TILE,TILE);
-        // Grass tufts
+        c.strokeStyle = s.grid; c.lineWidth = 1; c.strokeRect(x,y,TILE,TILE);
         if (hash > 0.4) {
-          ctx.fillStyle = '#1a3a1a';
-          ctx.globalAlpha = 0.4 + hash2*0.3;
+          c.fillStyle = '#1a3a1a'; c.globalAlpha = 0.4 + hash2*0.3;
           const gx = x+hash*TILE, gy = y+hash2*TILE;
-          ctx.beginPath(); ctx.moveTo(gx-3,gy); ctx.lineTo(gx,gy-8-hash*5); ctx.lineTo(gx+3,gy); ctx.fill();
-          ctx.beginPath(); ctx.moveTo(gx+5,gy); ctx.lineTo(gx+7,gy-6-hash2*4); ctx.lineTo(gx+9,gy); ctx.fill();
-          ctx.globalAlpha = 1;
+          c.beginPath(); c.moveTo(gx-3,gy); c.lineTo(gx,gy-8-hash*5); c.lineTo(gx+3,gy); c.fill();
+          c.beginPath(); c.moveTo(gx+5,gy); c.lineTo(gx+7,gy-6-hash2*4); c.lineTo(gx+9,gy); c.fill();
+          c.globalAlpha = 1;
         }
-        // Tree stumps
         if (hash > 0.88) {
-          ctx.fillStyle = '#2a1a0a';
-          ctx.beginPath(); ctx.arc(x+TILE/2, y+TILE/2, 10+hash2*8, 0, Math.PI*2); ctx.fill();
-          ctx.fillStyle = '#1a3a1a44';
-          ctx.beginPath(); ctx.arc(x+TILE/2, y+TILE/2, 18+hash2*12, 0, Math.PI*2); ctx.fill();
+          c.fillStyle = '#2a1a0a'; c.beginPath(); c.arc(x+TILE/2, y+TILE/2, 10+hash2*8, 0, Math.PI*2); c.fill();
+          c.fillStyle = '#1a3a1a44'; c.beginPath(); c.arc(x+TILE/2, y+TILE/2, 18+hash2*12, 0, Math.PI*2); c.fill();
         }
       } else if (stageId === 2) {
-        // SCORCHING DESERT - sand dunes, rocks, cracks
-        ctx.fillStyle = hash > 0.5 ? '#1e1608' : '#1a1408';
-        ctx.fillRect(x,y,TILE,TILE);
-        // Sand ripples
-        ctx.strokeStyle = '#2a200e'; ctx.lineWidth = 0.5; ctx.globalAlpha = 0.5;
-        for (let r=0;r<3;r++) {
-          const ry = y + 10 + r*25 + hash*10;
-          ctx.beginPath(); ctx.moveTo(x,ry);
-          ctx.quadraticCurveTo(x+TILE/2, ry-5+hash2*10, x+TILE, ry+3);
-          ctx.stroke();
-        }
-        ctx.globalAlpha = 1;
-        // Rocks
-        if (hash > 0.9) {
-          ctx.fillStyle = '#3a2a1a';
-          ctx.beginPath(); ctx.ellipse(x+TILE*hash2,y+TILE*hash,8+hash*6,5+hash2*4,hash,0,Math.PI*2); ctx.fill();
-        }
-        // Cracks
-        if (hash2 > 0.85) {
-          ctx.strokeStyle = '#0e0a0444'; ctx.lineWidth = 1;
-          ctx.beginPath(); ctx.moveTo(x+TILE*hash,y); ctx.lineTo(x+TILE*hash+15,y+TILE*hash2);
-          ctx.lineTo(x+TILE*hash+5,y+TILE); ctx.stroke();
-        }
+        c.fillStyle = hash > 0.5 ? '#1e1608' : '#1a1408'; c.fillRect(x,y,TILE,TILE);
+        c.strokeStyle = '#2a200e'; c.lineWidth = 0.5; c.globalAlpha = 0.5;
+        for (let r=0;r<3;r++) { const ry=y+10+r*25+hash*10; c.beginPath(); c.moveTo(x,ry); c.quadraticCurveTo(x+TILE/2,ry-5+hash2*10,x+TILE,ry+3); c.stroke(); }
+        c.globalAlpha = 1;
+        if (hash > 0.9) { c.fillStyle='#3a2a1a'; c.beginPath(); c.ellipse(x+TILE*hash2,y+TILE*hash,8+hash*6,5+hash2*4,hash,0,Math.PI*2); c.fill(); }
+        if (hash2 > 0.85) { c.strokeStyle='#0e0a0444'; c.lineWidth=1; c.beginPath(); c.moveTo(x+TILE*hash,y); c.lineTo(x+TILE*hash+15,y+TILE*hash2); c.lineTo(x+TILE*hash+5,y+TILE); c.stroke(); }
       } else if (stageId === 3) {
-        // FROZEN TUNDRA - ice tiles, snow mounds, frozen cracks
-        const iceCol = hash > 0.5 ? '#0c1822' : '#0a1520';
-        ctx.fillStyle = iceCol;
-        ctx.fillRect(x,y,TILE,TILE);
-        // Ice shine
-        if (hash > 0.7) {
-          ctx.fillStyle = '#ffffff';
-          ctx.globalAlpha = 0.03 + hash2 * 0.04;
-          ctx.fillRect(x+hash*30, y+hash2*30, 20+hash*30, 2);
-          ctx.globalAlpha = 1;
-        }
-        // Snow mounds
-        if (hash > 0.85) {
-          ctx.fillStyle = '#1a2a3a';
-          ctx.globalAlpha = 0.5;
-          ctx.beginPath(); ctx.ellipse(x+TILE/2,y+TILE/2,14+hash2*10,8+hash*5,0,0,Math.PI*2); ctx.fill();
-          ctx.fillStyle = '#2a3a4a';
-          ctx.beginPath(); ctx.ellipse(x+TILE/2-2,y+TILE/2-2,10+hash2*6,5+hash*3,0,0,Math.PI*2); ctx.fill();
-          ctx.globalAlpha = 1;
-        }
-        // Ice grid
-        ctx.strokeStyle = '#182838'; ctx.lineWidth = 0.5;
-        ctx.strokeRect(x,y,TILE,TILE);
+        c.fillStyle = hash > 0.5 ? '#0c1822' : '#0a1520'; c.fillRect(x,y,TILE,TILE);
+        if (hash > 0.7) { c.fillStyle='#ffffff'; c.globalAlpha=0.03+hash2*0.04; c.fillRect(x+hash*30,y+hash2*30,20+hash*30,2); c.globalAlpha=1; }
+        if (hash > 0.85) { c.fillStyle='#1a2a3a'; c.globalAlpha=0.5; c.beginPath(); c.ellipse(x+TILE/2,y+TILE/2,14+hash2*10,8+hash*5,0,0,Math.PI*2); c.fill(); c.fillStyle='#2a3a4a'; c.beginPath(); c.ellipse(x+TILE/2-2,y+TILE/2-2,10+hash2*6,5+hash*3,0,0,Math.PI*2); c.fill(); c.globalAlpha=1; }
+        c.strokeStyle='#182838'; c.lineWidth=0.5; c.strokeRect(x,y,TILE,TILE);
       } else if (stageId === 4) {
-        // INFERNO VOLCANO - lava cracks, charred ground, ember glow
-        ctx.fillStyle = hash > 0.6 ? '#1e0a0a' : '#1a0808';
-        ctx.fillRect(x,y,TILE,TILE);
-        // Lava veins
-        if (hash2 > 0.7) {
-          ctx.strokeStyle = '#ff220022'; ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.moveTo(x+hash*TILE, y);
-          ctx.quadraticCurveTo(x+TILE/2+hash2*20, y+TILE/2, x+hash2*TILE, y+TILE);
-          ctx.stroke();
-          // Glow around lava
-          ctx.strokeStyle = '#ff440011'; ctx.lineWidth = 6;
-          ctx.stroke();
-        }
-        // Charred rocks
-        if (hash > 0.88) {
-          ctx.fillStyle = '#2a1111';
-          ctx.beginPath(); ctx.ellipse(x+TILE*hash2,y+TILE*hash,7+hash*8,5+hash2*6,hash*3,0,Math.PI*2); ctx.fill();
-        }
-        // Ember spots
-        if (hash > 0.93) {
-          ctx.fillStyle = '#ff440033';
-          ctx.beginPath(); ctx.arc(x+TILE*hash2,y+TILE*hash,3+hash*4,0,Math.PI*2); ctx.fill();
-        }
+        c.fillStyle = hash > 0.6 ? '#1e0a0a' : '#1a0808'; c.fillRect(x,y,TILE,TILE);
+        if (hash2 > 0.7) { c.strokeStyle='#ff220022'; c.lineWidth=2; c.beginPath(); c.moveTo(x+hash*TILE,y); c.quadraticCurveTo(x+TILE/2+hash2*20,y+TILE/2,x+hash2*TILE,y+TILE); c.stroke(); c.strokeStyle='#ff440011'; c.lineWidth=6; c.stroke(); }
+        if (hash > 0.88) { c.fillStyle='#2a1111'; c.beginPath(); c.ellipse(x+TILE*hash2,y+TILE*hash,7+hash*8,5+hash2*6,hash*3,0,Math.PI*2); c.fill(); }
+        if (hash > 0.93) { c.fillStyle='#ff440033'; c.beginPath(); c.arc(x+TILE*hash2,y+TILE*hash,3+hash*4,0,Math.PI*2); c.fill(); }
       } else if (stageId === 5) {
-        // THE VOID - stars, nebula, geometric patterns
-        // Dark void base
-        ctx.fillStyle = hash > 0.5 ? '#0c0618' : '#0a0510';
-        ctx.fillRect(x,y,TILE,TILE);
-        // Distant stars
-        if (hash > 0.75) {
-          ctx.fillStyle = '#ffffff';
-          ctx.globalAlpha = hash2 * 0.4;
-          ctx.beginPath(); ctx.arc(x+hash*TILE,y+hash2*TILE,0.5+hash*1.5,0,Math.PI*2); ctx.fill();
-          ctx.globalAlpha = 1;
-        }
-        // Nebula patches
-        if (hash > 0.9) {
-          ctx.fillStyle = hash2>0.5 ? '#aa44ff08' : '#4444ff08';
-          ctx.beginPath(); ctx.arc(x+TILE/2,y+TILE/2,20+hash*25,0,Math.PI*2); ctx.fill();
-        }
-        // Geometric grid (hexagonal feel)
-        ctx.strokeStyle = '#1a0a2a'; ctx.lineWidth = 0.5;
-        const cx2=x+TILE/2, cy2=y+TILE/2;
-        ctx.beginPath();
-        for(let i=0;i<6;i++){const a2=(i/6)*Math.PI*2;ctx.moveTo(cx2,cy2);ctx.lineTo(cx2+Math.cos(a2)*TILE*0.5,cy2+Math.sin(a2)*TILE*0.5);}
-        ctx.stroke();
+        c.fillStyle = hash > 0.5 ? '#0c0618' : '#0a0510'; c.fillRect(x,y,TILE,TILE);
+        if (hash > 0.75) { c.fillStyle='#ffffff'; c.globalAlpha=hash2*0.4; c.beginPath(); c.arc(x+hash*TILE,y+hash2*TILE,0.5+hash*1.5,0,Math.PI*2); c.fill(); c.globalAlpha=1; }
+        if (hash > 0.9) { c.fillStyle=hash2>0.5?'#aa44ff08':'#4444ff08'; c.beginPath(); c.arc(x+TILE/2,y+TILE/2,20+hash*25,0,Math.PI*2); c.fill(); }
+        c.strokeStyle='#1a0a2a'; c.lineWidth=0.5; const cx2=x+TILE/2,cy2=y+TILE/2; c.beginPath(); for(let i=0;i<6;i++){const a2=(i/6)*Math.PI*2;c.moveTo(cx2,cy2);c.lineTo(cx2+Math.cos(a2)*TILE*0.5,cy2+Math.sin(a2)*TILE*0.5);} c.stroke();
       }
     }
-
     // World boundary
-    ctx.strokeStyle = s.accent + '44'; ctx.lineWidth = 3;
-    ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
+    c.strokeStyle = s.accent + '44'; c.lineWidth = 3;
+    c.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
+
+    this.bgCache = oc;
+  }
+
+  drawBg() {
+    // Just blit the cached background - one drawImage call per frame!
+    if (this.bgCache) {
+      const cam = this.camera;
+      const sx = Math.max(0, Math.floor(cam.x));
+      const sy = Math.max(0, Math.floor(cam.y));
+      const sw = Math.min(canvas.width + 2, WORLD_SIZE - sx);
+      const sh = Math.min(canvas.height + 2, WORLD_SIZE - sy);
+      ctx.drawImage(this.bgCache, sx, sy, sw, sh, sx, sy, sw, sh);
+    }
   }
 
   drawEnvParticles() {
