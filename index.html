@@ -747,6 +747,7 @@ canvas { display: block; }
   <div id="game-title">INFINITY<br>SURVIVORS</div>
   <div id="title-subtitle">SURVIVE THE ENDLESS HORDE</div>
   <button id="start-btn">START</button>
+  <div id="mode-buttons" style="display:flex;gap:8px;margin-top:10px"></div>
   <div id="title-best"></div>
   <div id="title-buttons">
     <button class="title-sub-btn" id="btn-daily">DAILY</button>
@@ -910,7 +911,10 @@ const Storage = {
     this.saveProfile(p); return p;
   },
   unlockChar(id) { const p=this.getProfile(); if(!p.unlockedChars.includes(id)){p.unlockedChars.push(id);} this.saveProfile(p); return p; },
-  selectChar(id) { const p=this.getProfile(); p.selectedChar=id; this.saveProfile(p); return p; }
+  selectChar(id) { const p=this.getProfile(); p.selectedChar=id; this.saveProfile(p); return p; },
+  getFlags() { try { return JSON.parse(localStorage.getItem('is_flags')||'{}'); } catch(e) { return {}; } },
+  setFlag(k,v) { const f=this.getFlags(); f[k]=v; localStorage.setItem('is_flags',JSON.stringify(f)); },
+  hasFlag(k) { return !!this.getFlags()[k]; }
 };
 
 // ---- Permanent Upgrades ----
@@ -958,6 +962,23 @@ const ACHIEVEMENTS = [
   { id:'nodmg60',   name:'Untouchable',  icon:'\u{1F6E1}\uFE0F', desc:'Survive 60s without damage', check:g=>g.noDmgTimer>=60 },
   { id:'all6wep',   name:'Arsenal',      icon:'\u{1F52B}', desc:'Own all 6 weapons at once', check:g=>Object.keys(g.player.weapons).length>=6 },
   { id:'score10k',  name:'High Scorer',  icon:'\u{1F3C6}', desc:'Score over 10,000', check:g=>calcScore(g)>=10000 },
+  { id:'score25k',  name:'Legend',       icon:'\u{1F48E}', desc:'Score over 25,000', check:g=>calcScore(g)>=25000 },
+  { id:'kill1000',  name:'Genocide',     icon:'\u{1F525}', desc:'Kill 1000 enemies in one run', check:g=>g.totalKills>=1000 },
+  { id:'combo500',  name:'Infinite',     icon:'\u{267E}\uFE0F', desc:'Reach 500 combo', check:g=>g.maxCombo>=500 },
+  { id:'lv30',      name:'Master',       icon:'\u{1F31F}', desc:'Reach Level 30', check:g=>g.player.level>=30 },
+  { id:'noHit',     name:'Pacifist Run', icon:'\u{1F54A}\uFE0F', desc:'Survive 120s without damage', check:g=>g.noDmgTimer>=120 },
+  { id:'speedS1',   name:'Speed Demon',  icon:'\u{26A1}', desc:'Clear Stage 1 in under 45s', check:g=>g.currentStage>=1&&g.state==='stageClear'&&g.stageTime<45 },
+  { id:'ult30',     name:'Nuke Happy',   icon:'\u{2622}\uFE0F', desc:'Use Ultimate 30 times', check:g=>(g.ultCount||0)>=30 },
+  { id:'fullHpBoss',name:'Flawless',     icon:'\u{1F48E}', desc:'Kill a boss at full HP', check:g=>g.state==='stageClear'&&g.player.hp>=g.player.maxHp },
+  { id:'endless5',  name:'Survivor',     icon:'\u{1F9DF}', desc:'Survive 5 min in Endless', check:g=>g.gameMode==='endless'&&g.time>=300 },
+  { id:'endless10', name:'Immortal',     icon:'\u{1F480}', desc:'Survive 10 min in Endless', check:g=>g.gameMode==='endless'&&g.time>=600 },
+  { id:'hard1',     name:'Fearless',     icon:'\u{1F608}', desc:'Clear Stage 1 on Hard', check:g=>g.gameMode==='hard'&&g.currentStage>=1&&g.state==='stageClear' },
+  { id:'hardAll',   name:'Godlike',      icon:'\u{1F451}', desc:'Clear all stages on Hard', check:g=>g.gameMode==='hard'&&g.currentStage>=4&&g.state==='stageClear' },
+  { id:'evolve1',   name:'Transcend',    icon:'\u{1F31F}', desc:'Evolve a weapon', check:g=>g.evolvedWeapons>0 },
+  { id:'evolveAll', name:'Perfection',   icon:'\u{1F4AF}', desc:'Evolve all 6 weapons', check:g=>g.evolvedWeapons>=6 },
+  { id:'allChars',  name:'Collector',    icon:'\u{1F3AD}', desc:'Unlock all characters', check:g=>Storage.getProfile().unlockedChars.length>=8 },
+  { id:'rich',      name:'Millionaire',  icon:'\u{1F4B0}', desc:'Accumulate 5000 coins total', check:g=>Storage.getProfile().coins>=5000||Storage.getProfile().userLevel>=15 },
+  { id:'perm5',     name:'Upgraded',     icon:'\u{1F527}', desc:'Max out any permanent upgrade', check:g=>PERM_UPGRADES.some(u=>PermUpgrades.getLevel(u.id)>=u.maxLv) },
 ];
 
 const AchievementSys = {
@@ -1151,6 +1172,8 @@ const CHARACTERS = [
   { id:'purple',name:'Mystic',   color:'#9944dd', accent:'#ddaaff', scarf:'#44ffdd', shape:'ghost', cost:300,  desc:'Void ghost, +20% SP charge', unlockLevel:5, bonus:{spCharge:0.20} },
   { id:'gold',  name:'Solar',    color:'#ddaa22', accent:'#ffee88', scarf:'#ff4488', shape:'star',  cost:500,  desc:'Star guardian, +10% all stats', unlockLevel:8, bonus:{speed:0.05,dmg:0.05,spCharge:0.10} },
   { id:'dark',  name:'Shadow',   color:'#444466', accent:'#8888aa', scarf:'#ff0044', shape:'reaper',cost:1000, desc:'Dark reaper, +25% dmg, -10% HP', unlockLevel:12, bonus:{dmg:0.25,hpMul:-0.10} },
+  { id:'rainbow',name:'Prisma',  color:'#ff44ff', accent:'#ffffff', scarf:'#44ffff', shape:'round', cost:0, desc:'Rainbow entity, +15% all stats', unlockLevel:0, bonus:{speed:0.15,dmg:0.15,spCharge:0.15}, hidden:true },
+  { id:'void',  name:'Oblivion', color:'#220044', accent:'#aa00ff', scarf:'#ff00ff', shape:'ghost', cost:0, desc:'Born from the void, +30% SP, -20% HP', unlockLevel:0, bonus:{spCharge:0.30,hpMul:-0.20}, hidden:true },
 ];
 
 function calcScore(g) {
@@ -1192,6 +1215,21 @@ function updateTitleScreen() {
   document.getElementById('title-profile').textContent = `Lv.${prof.userLevel} | ${prof.coins} coins`;
   const best = Storage.getBest();
   document.getElementById('title-best').textContent = best ? `Best: ${best.score} pts` : '';
+  // Mode buttons
+  const modeEl = document.getElementById('mode-buttons');
+  modeEl.innerHTML = '';
+  if (Storage.hasFlag('endless')) {
+    const b = document.createElement('button');
+    b.className='title-sub-btn'; b.textContent='\u{267E}\uFE0F ENDLESS';
+    b.onclick = () => { game=new Game(); game.start('endless'); };
+    modeEl.appendChild(b);
+  }
+  if (Storage.hasFlag('hard')) {
+    const b = document.createElement('button');
+    b.className='title-sub-btn'; b.style.color='#ff4444'; b.style.borderColor='#ff444488'; b.textContent='\u{1F480} HARD';
+    b.onclick = () => { game=new Game(); game.start('hard'); };
+    modeEl.appendChild(b);
+  }
 }
 
 function showShop() {
@@ -1200,6 +1238,7 @@ function showShop() {
   const grid = document.getElementById('shop-grid');
   grid.innerHTML = '';
   for (const ch of CHARACTERS) {
+    if (ch.hidden && !prof.unlockedChars.includes(ch.id)) continue; // hide secret chars
     const owned = prof.unlockedChars.includes(ch.id);
     const selected = prof.selectedChar === ch.id;
     const levelOk = prof.userLevel >= ch.unlockLevel;
@@ -1434,6 +1473,16 @@ const PASSIVE_DEFS = {
   cooldown: { name:'Haste', icon:'\u23F1\uFE0F', color:'#88ffff', desc:'-10% cooldown', maxLv:5 }
 };
 
+// ---- Weapon Evolution (at max level 8) ----
+const WEAPON_EVOLUTIONS = {
+  magicBullet: { name:'Soul Barrage', icon:'\u{1F300}', color:'#dd88ff', desc:'Fires 10 homing soul missiles', dmgMul:2.5, countMul:3 },
+  fireCircle:  { name:'Inferno Ring', icon:'\u{1F31E}', color:'#ffaa00', desc:'Massive fire ring of destruction', dmgMul:3, radiusMul:2 },
+  lightning:   { name:'Thunder God',  icon:'\u{1F329}\uFE0F', color:'#ffff88', desc:'Chain lightning hits 8 targets', dmgMul:2, countMul:3 },
+  shuriken:    { name:'Blade Storm',  icon:'\u{1F4AB}', color:'#aaddff', desc:'Infinite pierce razor storm', dmgMul:2, pierceMul:99 },
+  frostNova:   { name:'Absolute Zero',icon:'\u{1F4A0}', color:'#88ffff', desc:'Freezes entire screen for 3s', dmgMul:3, rangeMul:5 },
+  meteor:      { name:'Apocalypse',   icon:'\u{1F30B}', color:'#ff6600', desc:'Rains 8 massive meteors', dmgMul:2.5, countMul:3 },
+};
+
 // ---- Enemy Types ----
 const ENEMY_TYPES = {
   slime:  { color:'#44cc44', speed:60, hp:18, size:14, xp:2, dmg:7 },
@@ -1493,6 +1542,8 @@ class Game {
     this.camera.shake = 0;
     this.combo = 0; this.comboTimer = 0; this.maxCombo = 0; this.comboFrozen = false;
     this.hitstop = 0; this.camZoom = 1; this.camZoomTarget = 1; this.bossClearTimer = 0;
+    this.gameMode = 'normal'; // normal, hard, endless
+    this.evolvedWeapons = 0;
     this.killBurst = 0; this.slowmo = 0;
     this.currentStage = 0;
     this.startStage(0);
@@ -1551,15 +1602,28 @@ class Game {
   }
 
   addWeapon(type) {
-    if (this.player.weapons[type]) this.player.weapons[type].level++;
-    else this.player.weapons[type] = { level:1, cooldownTimer:0, data:{} };
+    if (this.player.weapons[type]) {
+      this.player.weapons[type].level++;
+      // Check evolution at level 8
+      if (this.player.weapons[type].level >= 8 && !this.player.weapons[type].evolved && WEAPON_EVOLUTIONS[type]) {
+        this.player.weapons[type].evolved = true;
+        this.evolvedWeapons = (this.evolvedWeapons||0) + 1;
+        const evo = WEAPON_EVOLUTIONS[type];
+        this.showAnnouncement(`${evo.icon} ${evo.name}!`, evo.color, 36);
+        vib([50,30,50,30,100]);
+        screenFlash(`${evo.color}33`, 500);
+      }
+    } else {
+      this.player.weapons[type] = { level:1, cooldownTimer:0, data:{}, evolved:false };
+    }
   }
 
   getEffCd(base) { return base * Math.max(0.3, 1 - this.player.passives.cooldown * 0.10); }
 
-  start() {
+  start(mode) {
     this.state = 'playing';
     this.init();
+    if (mode) this.gameMode = mode;
     // Apply character bonuses
     const ch = getSelectedChar();
     this.charDef = ch;
@@ -1601,7 +1665,8 @@ class Game {
     else type = r<0.15 ? 'slime' : r<0.35 ? 'bat' : r<0.6 ? 'golem' : 'wraith';
 
     const def = ENEMY_TYPES[type];
-    const sc = stg.enemyScale * (1 + minute * 0.05); // slower HP scaling
+    const hardMul = this.gameMode === 'hard' ? 2.0 : 1.0;
+    const sc = stg.enemyScale * (1 + minute * 0.05) * hardMul;
     this.enemies.push({
       x, y, type,
       hp: def.hp * sc, maxHp: def.hp * sc,
@@ -1643,11 +1708,28 @@ class Game {
   }
 
   checkObjectives() {
+    if (this.gameMode === 'endless') {
+      // Endless: change background theme every 2 minutes, spawn bosses every 3 min
+      const bgIdx = Math.min(4, Math.floor(this.time / 120));
+      if (bgIdx !== this.currentStage) {
+        this.currentStage = bgIdx;
+        this.stageDef = STAGES[bgIdx];
+        this.buildBgCache();
+        this.envParticles = [];
+        const envCount = isMobile ? 15 : 40;
+        for (let i=0;i<envCount;i++) this.spawnEnvParticle(true);
+      }
+      // Boss every 3 minutes
+      if (!this.bossAlive && Math.floor(this.time / 180) > Math.floor((this.time - 1/60) / 180) && this.time > 30) {
+        this.bossSpawned = false;
+        this.spawnStageBoss();
+      }
+      return;
+    }
     const s = this.stageDef;
     if (s.killGoal && this.stageKills >= s.killGoal) this.objectives.kills = true;
     if (s.timeGoal && this.stageTime >= s.timeGoal) this.objectives.time = true;
 
-    // Check if we should spawn boss
     const killOk = !s.killGoal || this.objectives.kills;
     const timeOk = !s.timeGoal || this.objectives.time;
     if (killOk && timeOk && !this.bossSpawned) {
@@ -1762,6 +1844,17 @@ class Game {
 
   showVictory() {
     this.state = 'victory';
+    // Unlock endless + hard mode + hidden chars on first clear
+    if (!Storage.hasFlag('cleared')) {
+      Storage.setFlag('cleared', true);
+      Storage.setFlag('endless', true);
+      Storage.setFlag('hard', true);
+      Storage.unlockChar('rainbow');
+    }
+    if (this.gameMode === 'hard' && !Storage.hasFlag('hardCleared')) {
+      Storage.setFlag('hardCleared', true);
+      Storage.unlockChar('void');
+    }
     const score = calcScore(this);
     Storage.addScore({ name: Storage.getUser()||'???', score, stage: 5, time: this.formatTime(this.time), kills: this.totalKills, level: this.player.level, combo: this.maxCombo, date: new Date().toLocaleDateString() });
     const coinReward = 200 + this.totalKills;
@@ -1923,10 +2016,13 @@ class Game {
     const p = this.player, lv = w.level;
     switch(type) {
       case 'magicBullet': {
-        const ts = this.getClosest(lv + 1); // +1 base bullets
+        const evo = w.evolved ? WEAPON_EVOLUTIONS.magicBullet : null;
+        const bulletCount = evo ? (lv+1)*3 : lv+1;
+        const ts = this.getClosest(bulletCount);
         for (const t of ts) {
           const a = angle(p, t);
-          this.projectiles.push({ x:p.x, y:p.y, vx:Math.cos(a)*420, vy:Math.sin(a)*420, dmg:15+lv*5, size:5, life:2, color:'#aa66ff', type:'bullet', pierce:0, homing:t });
+          const bDmg = (15+lv*5) * (evo?evo.dmgMul:1);
+          this.projectiles.push({ x:p.x, y:p.y, vx:Math.cos(a)*420, vy:Math.sin(a)*420, dmg:bDmg, size:evo?8:5, life:2, color:evo?evo.color:'#aa66ff', type:'bullet', pierce:evo?2:0, homing:t });
         }
         if (ts.length) audio.play('hit', 0.15);
         break;
@@ -2251,8 +2347,9 @@ class Game {
     const score = calcScore(this);
     Storage.addScore({ name: Storage.getUser()||'???', score, stage: this.currentStage+1, time: this.formatTime(this.time), kills: this.totalKills, level: this.player.level, combo: this.maxCombo, date: new Date().toLocaleDateString() });
     // Rewards even on game over
-    const coinReward = Math.floor(this.totalKills * 0.3) + this.currentStage * 10;
-    const xpReward = Math.floor(this.totalKills * 0.5) + 10;
+    const hardBonus = this.gameMode === 'hard' ? 2 : 1;
+    const coinReward = (Math.floor(this.totalKills * 0.3) + this.currentStage * 10) * hardBonus;
+    const xpReward = (Math.floor(this.totalKills * 0.5) + 10) * hardBonus;
     Storage.addCoins(coinReward);
     const updatedProf = Storage.addUserXp(xpReward);
     document.getElementById('gameover-stats').innerHTML =
