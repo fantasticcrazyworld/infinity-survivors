@@ -415,21 +415,32 @@ canvas { display: block; }
 }
 .home-btn:hover { color: #fff; border-color: #aaa; }
 
-/* Name input screen */
+/* Name input screen - overlay modal */
 #name-screen {
   display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  background: radial-gradient(ellipse at 50% 40%, #1a0a2e 0%, #000 100%);
+  background: rgba(0,0,0,0.85);
   z-index: 210; justify-content: center; align-items: center; flex-direction: column;
 }
 #name-screen.active { display: flex; }
+#name-modal {
+  background: linear-gradient(145deg, #1a1040, #120828);
+  border: 2px solid #aa44ff88; border-radius: 20px;
+  padding: 36px 40px; text-align: center;
+  max-width: 90vw; width: 340px;
+  box-shadow: 0 0 60px rgba(170,68,255,0.2);
+}
 #name-screen h2 {
-  color: #ffdd00; font-size: 24px; font-family: 'Orbitron', sans-serif;
-  margin-bottom: 20px; text-shadow: 0 0 20px #ffdd0044;
+  color: #ffdd00; font-size: 20px; font-family: 'Orbitron', sans-serif;
+  margin-bottom: 8px; text-shadow: 0 0 20px #ffdd0044;
+}
+#name-hint {
+  color: #888; font-size: 13px; font-family: 'Rajdhani', sans-serif;
+  margin-bottom: 20px; line-height: 1.5;
 }
 #name-input {
   background: #111; border: 2px solid #444; color: #fff;
   padding: 12px 20px; font-size: 20px; border-radius: 10px;
-  text-align: center; width: 250px; font-family: 'Orbitron', sans-serif;
+  text-align: center; width: 100%; font-family: 'Orbitron', sans-serif;
   outline: none; transition: border-color 0.3s;
 }
 #name-input:focus { border-color: #ffdd00; }
@@ -438,10 +449,17 @@ canvas { display: block; }
   background: linear-gradient(135deg, #ffdd00, #ff8800);
   color: #111; border: none; padding: 12px 40px;
   font-size: 18px; font-weight: 700; border-radius: 50px;
-  cursor: pointer; margin-top: 20px; font-family: 'Orbitron', sans-serif;
-  transition: all 0.3s;
+  cursor: pointer; margin-top: 16px; font-family: 'Orbitron', sans-serif;
+  transition: all 0.3s; width: 100%;
 }
 #name-submit:hover { transform: scale(1.06); }
+#name-skip {
+  background: none; border: none; color: #666;
+  font-size: 13px; font-family: 'Rajdhani', sans-serif;
+  cursor: pointer; margin-top: 12px; padding: 8px;
+  transition: color 0.2s;
+}
+#name-skip:hover { color: #aaa; }
 
 /* Ranking screen */
 #ranking-screen {
@@ -785,9 +803,13 @@ canvas { display: block; }
 </div>
 
 <div id="name-screen">
-  <h2>ENTER YOUR NAME</h2>
-  <input type="text" id="name-input" placeholder="Name" maxlength="12" autocomplete="off">
-  <button id="name-submit">OK</button>
+  <div id="name-modal">
+    <h2>WHAT'S YOUR NAME?</h2>
+    <div id="name-hint">Your name will appear on the leaderboard</div>
+    <input type="text" id="name-input" placeholder="Enter name..." maxlength="12" autocomplete="off">
+    <button id="name-submit">LET'S GO!</button>
+    <button id="name-skip">Skip for now</button>
+  </div>
 </div>
 
 <div id="title-screen">
@@ -1693,42 +1715,47 @@ function getShareText(type) {
   const stageBar = bar(game.currentStage+1, STAGES.length, '🟪', '⬜');
 
   if (type === 'gameover') {
-    return `☠️ INFINITY SURVIVORS ☠️
+    return `☠️ GAME OVER ☠️
+🎮 Infinity Survivors - 無料ブラウザゲーム
 
-⚔️ ${game.stageDef.name}
-⏱ ${game.formatTime(game.time)} | 💀 ${game.totalKills} kills
-⭐ Lv.${p.level} | 🔥 ${game.maxCombo} max combo
+⚔️ ${game.stageDef.name} で倒された…
+⏱ ${game.formatTime(game.time)} | 💀 ${game.totalKills}体撃破
+⭐ Lv.${p.level} | 🔥 最大${game.maxCombo}コンボ
 🗡 ${weapons}
 
 ${stageBar}
-Score: ${calcScore(game)} pts
+スコア: ${calcScore(game)} pts
 
-Can you beat me? 🔥
-Play now 👇
-#InfinitySurvivors`;
+ヴァンサバ風ローグライク！15ステージ×3ワールド🌍
+誰でも無料で今すぐプレイ👇
+#InfinitySurvivors #無料ゲーム #ブラウザゲーム`;
   } else if (type === 'victory') {
-    return `🏆 INFINITY SURVIVORS - ALL CLEAR! 🏆
+    return `🏆 全ステージクリア！！ 🏆
+🎮 Infinity Survivors - 無料ブラウザゲーム
 
-⏱ ${game.formatTime(game.time)} | 💀 ${game.totalKills} kills
-⭐ Lv.${p.level} | 🔥 ${game.maxCombo} max combo
+⏱ ${game.formatTime(game.time)} | 💀 ${game.totalKills}体撃破
+⭐ Lv.${p.level} | 🔥 最大${game.maxCombo}コンボ
 🗡 ${weapons}
 
 ${bar(5,5,'🟨','⬜')} COMPLETE!
+スコア: ${calcScore(game)} pts 👑
 
-Score: ${calcScore(game)} pts 👑
-Play now 👇
-#InfinitySurvivors`;
+ヴァンサバ風ローグライク！15ステージ×3ワールド🌍
+クリアできる？今すぐ挑戦👇
+#InfinitySurvivors #無料ゲーム #ブラウザゲーム`;
   } else {
-    return `✨ ${game.stageDef.world}-${game.stageDef.stage} CLEAR! ✨
+    return `✨ ステージ${game.stageDef.world}-${game.stageDef.stage} クリア！ ✨
+🎮 Infinity Survivors - 無料ブラウザゲーム
 
-🏰 ${game.stageDef.name}
-💀 ${game.stageKills} kills | ⭐ Lv.${p.level}
+🏰 ${game.stageDef.name} 突破！
+💀 ${game.stageKills}体撃破 | ⭐ Lv.${p.level}
 🗡 ${weapons}
 
 ${stageBar}
 
-Play now 👇
-#InfinitySurvivors`;
+ヴァンサバ風ローグライク！誰でも無料🌍
+今すぐプレイ👇
+#InfinitySurvivors #無料ゲーム #ブラウザゲーム`;
   }
 }
 
@@ -3947,25 +3974,37 @@ document.addEventListener('touchmove',tMove,{passive:false});
 document.addEventListener('touchend',tEnd);
 
 // ---- Name Screen ----
+let pendingStartAction = null; // callback after name entry
+
 function checkUser() {
-  const user = Storage.getUser();
-  if (!user) {
-    document.getElementById('name-screen').classList.add('active');
-    document.getElementById('title-screen').classList.add('hidden');
-  } else {
-    document.getElementById('name-screen').classList.remove('active');
-    document.getElementById('title-screen').classList.remove('hidden');
-    updateTitleScreen();
-  }
+  // Always show title screen first
+  document.getElementById('name-screen').classList.remove('active');
+  document.getElementById('title-screen').classList.remove('hidden');
+  updateTitleScreen();
 }
+
+function promptName(onComplete) {
+  pendingStartAction = onComplete;
+  const existing = Storage.getUser();
+  document.getElementById('name-input').value = existing || '';
+  document.getElementById('name-hint').textContent = existing ? 'Change your display name' : 'Your name will appear on the leaderboard';
+  document.getElementById('name-skip').style.display = existing ? 'none' : 'block';
+  document.getElementById('name-screen').classList.add('active');
+}
+
+function finishNameEntry(name) {
+  if (name) Storage.setUser(name);
+  document.getElementById('name-screen').classList.remove('active');
+  updateTitleScreen();
+  if (pendingStartAction) { pendingStartAction(); pendingStartAction = null; }
+}
+
 document.getElementById('name-submit').onclick = () => {
   const val = document.getElementById('name-input').value.trim();
-  if (val) {
-    Storage.setUser(val);
-    document.getElementById('name-screen').classList.remove('active');
-    document.getElementById('title-screen').classList.remove('hidden');
-    updateTitleScreen();
-  }
+  if (val) finishNameEntry(val);
+};
+document.getElementById('name-skip').onclick = () => {
+  finishNameEntry('Player');
 };
 document.getElementById('name-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') document.getElementById('name-submit').click();
@@ -3981,7 +4020,13 @@ setTimeout(() => {
 }, 500);
 
 // ---- Buttons ----
-document.getElementById('start-btn').onclick = () => { game=new Game(); game.start(); };
+document.getElementById('start-btn').onclick = () => {
+  if (!Storage.getUser()) {
+    promptName(() => { game=new Game(); game.start(); });
+  } else {
+    game=new Game(); game.start();
+  }
+};
 document.getElementById('retry-btn').onclick = () => { game.start(); };
 document.getElementById('victory-retry-btn').onclick = () => { game.start(); };
 document.getElementById('next-stage-btn').onclick = () => {
@@ -4010,9 +4055,7 @@ document.getElementById('btn-ranking').onclick = showRanking;
 document.getElementById('ranking-close').onclick = () => document.getElementById('ranking-screen').classList.remove('active');
 // Change name
 document.getElementById('btn-changename').onclick = () => {
-  document.getElementById('name-input').value = Storage.getUser();
-  document.getElementById('name-screen').classList.add('active');
-  document.getElementById('title-screen').classList.add('hidden');
+  promptName(() => { updateTitleScreen(); });
 };
 // Pause
 document.getElementById('pause-resume').onclick = () => {
